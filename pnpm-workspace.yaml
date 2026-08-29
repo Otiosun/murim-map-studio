@@ -7,6 +7,7 @@ saveExact: true
 minimumReleaseAge: 1440
 
 # pnpm blocks dependency lifecycle scripts unless they are explicitly reviewed.
-# unrs-resolver uses a postinstall helper to prepare its native resolver binding.
+# unrs-resolver prepares its native resolver binding; supabase installs the pinned CLI binary.
 allowBuilds:
   unrs-resolver: true
+  supabase: true
