@@ -20,7 +20,7 @@
     "db:stop": "supabase stop --no-backup",
     "db:reset": "supabase db reset --local",
     "db:test": "supabase test db",
-    "db:types": "supabase gen types typescript --local --schema player_api,world_private,app_private"
+    "db:types": "supabase gen types typescript --local --schema player_api,server_api,world_private,app_private"
   },
   "devDependencies": {
     "@types/node": "24.13.3",

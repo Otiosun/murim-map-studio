@@ -108,7 +108,9 @@ export interface ResourceSiteEntity extends WorldScopedEntity<'resource-site'> {
   tags: string[];
 }
 
-export type OpportunityState = 'available' | 'dormant' | 'blocked' | 'consumed';
+export const OPPORTUNITY_STATES = ['available', 'dormant', 'blocked', 'consumed'] as const;
+
+export type OpportunityState = (typeof OPPORTUNITY_STATES)[number];
 
 export interface OpportunityEntity extends WorldScopedEntity<'opportunity'> {
   locationId?: EntityId;
@@ -118,16 +120,19 @@ export interface OpportunityEntity extends WorldScopedEntity<'opportunity'> {
   tags: string[];
 }
 
-export type CaseState =
-  | 'available'
-  | 'open'
-  | 'active'
-  | 'paused'
-  | 'resolved'
-  | 'failed'
-  | 'escalated'
-  | 'transformed'
-  | 'archived';
+export const CASE_STATES = [
+  'available',
+  'open',
+  'active',
+  'paused',
+  'resolved',
+  'failed',
+  'escalated',
+  'transformed',
+  'archived',
+] as const;
+
+export type CaseState = (typeof CASE_STATES)[number];
 
 export interface CaseEntity extends WorldScopedEntity<'case'> {
   name: string;
