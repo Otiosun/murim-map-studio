@@ -156,9 +156,9 @@ const isBoolean = (value: JsonValue): boolean => typeof value === 'boolean';
 const isFiniteNumber = (value: JsonValue): boolean =>
   typeof value === 'number' && Number.isFinite(value);
 const isNonNegativeInteger = (value: JsonValue): boolean =>
-  isFiniteNumber(value) && Number.isInteger(value) && value >= 0;
+  typeof value === 'number' && Number.isFinite(value) && Number.isInteger(value) && value >= 0;
 const isConfidence = (value: JsonValue): boolean =>
-  isFiniteNumber(value) && typeof value === 'number' && value >= 0 && value <= 1;
+  typeof value === 'number' && Number.isFinite(value) && value >= 0 && value <= 1;
 const isStringArray = (value: JsonValue): boolean =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
 const isEntityType = (value: JsonValue): boolean =>
@@ -171,7 +171,6 @@ const oneOf =
 const stringRule: PropertyRule = { validate: isString };
 const optionalStringRule: PropertyRule = { validate: isString, canUnset: true };
 const tagsRule: PropertyRule = { validate: isStringArray };
-const optionalStringArrayRule: PropertyRule = { validate: isStringArray, canUnset: true };
 
 const EDITABLE_PROPERTIES: Record<EntityType, Record<string, PropertyRule>> = {
   world: {
@@ -270,8 +269,6 @@ const EDITABLE_PROPERTIES: Record<EntityType, Record<string, PropertyRule>> = {
     tags: tagsRule,
   },
 };
-
-void optionalStringArrayRule;
 
 function metadataError(meta: CommandMetadata): CommandApplyFailure | null {
   if (
@@ -442,8 +439,8 @@ function applyMove(
     { kind: 'MoveEntity', entityId: target.id, position: previousPosition },
     changedEntityIds,
     auditEvent(document, command, 'entity_moved', target, changedEntityIds, {
-      from: previousPosition,
-      to: nextPosition,
+      from: { x: previousPosition.x, y: previousPosition.y },
+      to: { x: nextPosition.x, y: nextPosition.y },
     }),
   );
 }

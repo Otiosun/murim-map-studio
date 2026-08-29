@@ -327,4 +327,153 @@ describe('Command Engine V0', () => {
       expect(WORLD_EVENT_KINDS).toContain(required);
     }
   });
+
+  it('supports a multi-command LIFO undo/redo chain without losing ordering', () => {
+    const first = executeWithHistory(
+      document(),
+      createCommandHistory(),
+      command('cmd-chain-move', {
+        kind: 'MoveEntity',
+        entityId: LOCATION_A_ID,
+        position: { x: 210, y: 220 },
+      }),
+    );
+    expect(first.ok).toBe(true);
+    if (!first.ok) return;
+
+    const second = executeWithHistory(
+      first.document,
+      first.history,
+      command('cmd-chain-update', {
+        kind: 'UpdateProperty',
+        entityId: LOCATION_A_ID,
+        property: 'name',
+        mutation: { operation: 'set', value: 'Qinghe em Obras' },
+      }),
+    );
+    expect(second.ok).toBe(true);
+    if (!second.ok) return;
+
+    const third = executeWithHistory(
+      second.document,
+      second.history,
+      command('cmd-chain-connect', {
+        kind: 'ConnectRoute',
+        routeId: NEW_ROUTE_ID,
+        fromLocationId: LOCATION_B_ID,
+        toLocationId: LOCATION_C_ID,
+        routeKind: 'trail',
+        bidirectional: true,
+        tags: [],
+      }),
+    );
+    expect(third.ok).toBe(true);
+    if (!third.ok) return;
+    expect(third.history.past).toHaveLength(3);
+
+    const undo3 = undoWithHistory(third.document, third.history, meta('undo-chain-3'));
+    expect(undo3.ok).toBe(true);
+    if (!undo3.ok) return;
+    expect(undo3.document.entities.some((item) => item.id === NEW_ROUTE_ID)).toBe(false);
+
+    const undo2 = undoWithHistory(undo3.document, undo3.history, meta('undo-chain-2'));
+    expect(undo2.ok).toBe(true);
+    if (!undo2.ok) return;
+    expect(entity<LocationEntity>(undo2.document, LOCATION_A_ID).name).toBe('Vila Qinghe');
+
+    const undo1 = undoWithHistory(undo2.document, undo2.history, meta('undo-chain-1'));
+    expect(undo1.ok).toBe(true);
+    if (!undo1.ok) return;
+    expect(entity<LocationEntity>(undo1.document, LOCATION_A_ID).position).toEqual(
+      locationA.position,
+    );
+    expect(undo1.history.past).toHaveLength(0);
+    expect(undo1.history.future).toHaveLength(3);
+
+    const redo1 = redoWithHistory(undo1.document, undo1.history, meta('redo-chain-1'));
+    expect(redo1.ok).toBe(true);
+    if (!redo1.ok) return;
+    expect(entity<LocationEntity>(redo1.document, LOCATION_A_ID).position).toEqual({
+      x: 210,
+      y: 220,
+    });
+
+    const redo2 = redoWithHistory(redo1.document, redo1.history, meta('redo-chain-2'));
+    expect(redo2.ok).toBe(true);
+    if (!redo2.ok) return;
+    expect(entity<LocationEntity>(redo2.document, LOCATION_A_ID).name).toBe('Qinghe em Obras');
+
+    const redo3 = redoWithHistory(redo2.document, redo2.history, meta('redo-chain-3'));
+    expect(redo3.ok).toBe(true);
+    if (!redo3.ok) return;
+    expect(redo3.document.entities.some((item) => item.id === NEW_ROUTE_ID)).toBe(true);
+    expect(redo3.history.past).toHaveLength(3);
+    expect(redo3.history.future).toHaveLength(0);
+  });
+
+  it('clears the redo branch only after a new command commits successfully', () => {
+    const moved = executeWithHistory(
+      document(),
+      createCommandHistory(),
+      command('cmd-branch-move', {
+        kind: 'MoveEntity',
+        entityId: LOCATION_C_ID,
+        position: { x: 360, y: 370 },
+      }),
+    );
+    expect(moved.ok).toBe(true);
+    if (!moved.ok) return;
+
+    const undone = undoWithHistory(moved.document, moved.history, meta('cmd-branch-undo'));
+    expect(undone.ok).toBe(true);
+    if (!undone.ok) return;
+    expect(undone.history.future).toHaveLength(1);
+
+    const failed = executeWithHistory(
+      undone.document,
+      undone.history,
+      command('cmd-branch-fail', {
+        kind: 'UpdateProperty',
+        entityId: LOCATION_C_ID,
+        property: 'id',
+        mutation: { operation: 'set', value: 'forbidden' },
+      }),
+    );
+    expect(failed.ok).toBe(false);
+    expect(failed.document).toBe(undone.document);
+    expect(failed.history).toBe(undone.history);
+    expect(failed.history.future).toHaveLength(1);
+
+    const committed = executeWithHistory(
+      undone.document,
+      undone.history,
+      command('cmd-branch-new', {
+        kind: 'UpdateProperty',
+        entityId: LOCATION_C_ID,
+        property: 'name',
+        mutation: { operation: 'set', value: 'Poço Catalogado' },
+      }),
+    );
+    expect(committed.ok).toBe(true);
+    if (!committed.ok) return;
+    expect(committed.history.future).toHaveLength(0);
+
+    const noRedo = redoWithHistory(committed.document, committed.history, meta('cmd-no-redo'));
+    expect(noRedo).toMatchObject({ ok: false, error: { code: 'history_empty' } });
+  });
+
+  it('rejects malformed metadata before touching the document', () => {
+    const original = document();
+    const result = applyWorldCommand(original, {
+      meta: { ...meta('cmd-invalid-meta'), correlationId: '' },
+      payload: {
+        kind: 'MoveEntity',
+        entityId: LOCATION_C_ID,
+        position: { x: 1, y: 2 },
+      },
+    });
+
+    expect(result).toMatchObject({ ok: false, error: { code: 'invalid_metadata' } });
+    expect(entity<LocationEntity>(original, LOCATION_C_ID).position).toEqual(locationC.position);
+  });
 });
