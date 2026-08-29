@@ -90,6 +90,13 @@ jobs:
       - name: RLS and leakage tests
         run: pnpm db:test
 
+      - name: Verify generated database types are current
+        run: |
+          pnpm db:types > supabase/database.types.generated.ts
+          pnpm prettier --write supabase/database.types.generated.ts
+          diff -u supabase/database.types.ts supabase/database.types.generated.ts
+          rm supabase/database.types.generated.ts
+
       - name: Stop local Supabase
         if: always()
         run: pnpm db:stop
