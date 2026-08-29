@@ -5,3 +5,8 @@ packages:
 strictPeerDependencies: true
 saveExact: true
 minimumReleaseAge: 1440
+
+# pnpm blocks dependency lifecycle scripts unless they are explicitly reviewed.
+# unrs-resolver uses a postinstall helper to prepare its native resolver binding.
+allowBuilds:
+  unrs-resolver: true
