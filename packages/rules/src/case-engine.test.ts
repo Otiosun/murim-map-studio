@@ -31,7 +31,9 @@ function caseDefinition(): CaseDefinitionV1 {
           operator: 'eq',
           value: 'retreat',
         },
-        effects: [{ kind: 'emit_signal', signalKey: 'case.followup', payload: { urgency: 'medium' } }],
+        effects: [
+          { kind: 'emit_signal', signalKey: 'case.followup', payload: { urgency: 'medium' } },
+        ],
       },
       {
         id: 'resolve-rescue',
@@ -102,7 +104,10 @@ describe('Case Engine V1', () => {
     expect(final.transitionId).toBe('resolve-rescue');
     expect(final.runtime.state).toBe('resolved');
     expect(final.runtime.appliedClosures).toHaveLength(2);
-    expect(final.effects.map((effect) => effect.kind)).toEqual(['world_event', 'world_clock_delta']);
+    expect(final.effects.map((effect) => effect.kind)).toEqual([
+      'world_event',
+      'world_clock_delta',
+    ]);
     expect(final.assessments.find((item) => item.transitionId === 'resolve-rescue')).toMatchObject({
       eligible: true,
       reason: 'condition_passed',
@@ -245,7 +250,9 @@ describe('Case Engine V1', () => {
     });
     expect(invalidClosure.ok).toBe(false);
     if (!invalidClosure.ok) {
-      expect(invalidClosure.issues.some((issue) => issue.code === 'unsupported_version')).toBe(true);
+      expect(invalidClosure.issues.some((issue) => issue.code === 'unsupported_version')).toBe(
+        true,
+      );
     }
   });
 

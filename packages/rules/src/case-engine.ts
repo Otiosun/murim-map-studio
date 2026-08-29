@@ -99,12 +99,10 @@ export interface CaseDataIssueV1 {
 }
 
 export type CaseDefinitionValidationResultV1 =
-  | { ok: true; value: CaseDefinitionV1 }
-  | { ok: false; issues: CaseDataIssueV1[] };
+  { ok: true; value: CaseDefinitionV1 } | { ok: false; issues: CaseDataIssueV1[] };
 
 export type SceneClosureValidationResultV1 =
-  | { ok: true; value: SceneClosureV1 }
-  | { ok: false; issues: CaseDataIssueV1[] };
+  { ok: true; value: SceneClosureV1 } | { ok: false; issues: CaseDataIssueV1[] };
 
 export type CaseTransitionAssessmentReasonV1 =
   | 'wrong_state'
@@ -139,10 +137,7 @@ export interface CaseApplyFailureV1 {
 }
 
 export type CaseApplyReasonV1 =
-  | 'duplicate'
-  | 'partial_no_transition'
-  | 'transition'
-  | 'custom_resolution';
+  'duplicate' | 'partial_no_transition' | 'transition' | 'custom_resolution';
 
 export interface CaseApplySuccessV1 {
   ok: true;
@@ -167,12 +162,7 @@ interface JsonBudget {
   nodes: number;
 }
 
-function addIssue(
-  issues: CaseDataIssueV1[],
-  path: string,
-  code: string,
-  message: string,
-): void {
+function addIssue(issues: CaseDataIssueV1[], path: string, code: string, message: string): void {
   issues.push({ path, code, message });
 }
 
@@ -188,15 +178,12 @@ function exactKeys(
 ): void {
   const allow = new Set(allowed);
   for (const key of Object.keys(value)) {
-    if (!allow.has(key)) addIssue(issues, `${path}.${key}`, 'unknown_field', `Field ${key} is not allowed.`);
+    if (!allow.has(key))
+      addIssue(issues, `${path}.${key}`, 'unknown_field', `Field ${key} is not allowed.`);
   }
 }
 
-function parseString(
-  value: unknown,
-  path: string,
-  issues: CaseDataIssueV1[],
-): string | null {
+function parseString(value: unknown, path: string, issues: CaseDataIssueV1[]): string | null {
   if (typeof value !== 'string' || value.trim().length === 0) {
     addIssue(issues, path, 'invalid_string', 'Expected a non-empty string.');
     return null;
@@ -204,11 +191,7 @@ function parseString(
   return value;
 }
 
-function parseSafeKey(
-  value: unknown,
-  path: string,
-  issues: CaseDataIssueV1[],
-): string | null {
+function parseSafeKey(value: unknown, path: string, issues: CaseDataIssueV1[]): string | null {
   const parsed = parseString(value, path, issues);
   if (parsed === null) return null;
   if (parsed.length > RULE_AST_LIMITS_V1.maxKeyLength || !SAFE_KEY.test(parsed)) {
@@ -243,10 +226,7 @@ function parseClosureStatus(
   path: string,
   issues: CaseDataIssueV1[],
 ): SceneClosureStatusV1 | null {
-  if (
-    typeof value !== 'string' ||
-    !SCENE_CLOSURE_STATUSES_V1.some((status) => status === value)
-  ) {
+  if (typeof value !== 'string' || !SCENE_CLOSURE_STATUSES_V1.some((status) => status === value)) {
     addIssue(issues, path, 'invalid_closure_status', 'Unknown scene closure status.');
     return null;
   }
@@ -333,11 +313,7 @@ function parseJsonObject(
   return parsed !== undefined && isRecord(parsed) ? (parsed as RuleJsonObject) : null;
 }
 
-function parseEffect(
-  input: unknown,
-  path: string,
-  issues: CaseDataIssueV1[],
-): CaseEffectV1 | null {
+function parseEffect(input: unknown, path: string, issues: CaseDataIssueV1[]): CaseEffectV1 | null {
   if (!isRecord(input) || typeof input.kind !== 'string') {
     addIssue(issues, path, 'invalid_effect', 'Effect must be an object with an allow-listed kind.');
     return null;
@@ -347,7 +323,9 @@ function parseEffect(
     exactKeys(input, ['kind', 'eventKind', 'payload'], path, issues);
     const eventKind = parseSafeKey(input.eventKind, `${path}.eventKind`, issues);
     const payload = parseJsonObject(input.payload, `${path}.payload`, issues);
-    return eventKind !== null && payload !== null ? { kind: 'world_event', eventKind, payload } : null;
+    return eventKind !== null && payload !== null
+      ? { kind: 'world_event', eventKind, payload }
+      : null;
   }
 
   if (input.kind === 'knowledge_change') {
@@ -358,14 +336,26 @@ function parseEffect(
       typeof input.state === 'string' && KNOWLEDGE_STATES_V1.some((item) => item === input.state)
         ? (input.state as KnowledgeStateV1)
         : null;
-    if (state === null) addIssue(issues, `${path}.state`, 'invalid_knowledge_state', 'Unknown knowledge state.');
-    const confidence = typeof input.confidence === 'number' && Number.isFinite(input.confidence)
-      ? input.confidence
-      : null;
+    if (state === null)
+      addIssue(issues, `${path}.state`, 'invalid_knowledge_state', 'Unknown knowledge state.');
+    const confidence =
+      typeof input.confidence === 'number' && Number.isFinite(input.confidence)
+        ? input.confidence
+        : null;
     if (confidence === null || confidence < 0 || confidence > 1) {
-      addIssue(issues, `${path}.confidence`, 'invalid_confidence', 'Confidence must be between 0 and 1.');
+      addIssue(
+        issues,
+        `${path}.confidence`,
+        'invalid_confidence',
+        'Confidence must be between 0 and 1.',
+      );
     }
-    return ownerId !== null && targetKey !== null && state !== null && confidence !== null && confidence >= 0 && confidence <= 1
+    return ownerId !== null &&
+      targetKey !== null &&
+      state !== null &&
+      confidence !== null &&
+      confidence >= 0 &&
+      confidence <= 1
       ? { kind: 'knowledge_change', ownerId, targetKey, state, confidence }
       : null;
   }
@@ -373,9 +363,13 @@ function parseEffect(
   if (input.kind === 'world_clock_delta') {
     exactKeys(input, ['kind', 'clockKey', 'delta'], path, issues);
     const clockKey = parseSafeKey(input.clockKey, `${path}.clockKey`, issues);
-    const delta = typeof input.delta === 'number' && Number.isFinite(input.delta) ? input.delta : null;
-    if (delta === null) addIssue(issues, `${path}.delta`, 'invalid_number', 'Clock delta must be finite.');
-    return clockKey !== null && delta !== null ? { kind: 'world_clock_delta', clockKey, delta } : null;
+    const delta =
+      typeof input.delta === 'number' && Number.isFinite(input.delta) ? input.delta : null;
+    if (delta === null)
+      addIssue(issues, `${path}.delta`, 'invalid_number', 'Clock delta must be finite.');
+    return clockKey !== null && delta !== null
+      ? { kind: 'world_clock_delta', clockKey, delta }
+      : null;
   }
 
   if (input.kind === 'opportunity_state') {
@@ -385,7 +379,8 @@ function parseEffect(
       typeof input.state === 'string' && OPPORTUNITY_STATES_V1.some((item) => item === input.state)
         ? (input.state as OpportunityStateV1)
         : null;
-    if (state === null) addIssue(issues, `${path}.state`, 'invalid_opportunity_state', 'Unknown opportunity state.');
+    if (state === null)
+      addIssue(issues, `${path}.state`, 'invalid_opportunity_state', 'Unknown opportunity state.');
     return opportunityId !== null && state !== null
       ? { kind: 'opportunity_state', opportunityId, state }
       : null;
@@ -403,7 +398,9 @@ function parseEffect(
     exactKeys(input, ['kind', 'signalKey', 'payload'], path, issues);
     const signalKey = parseSafeKey(input.signalKey, `${path}.signalKey`, issues);
     const payload = parseJsonObject(input.payload, `${path}.payload`, issues);
-    return signalKey !== null && payload !== null ? { kind: 'emit_signal', signalKey, payload } : null;
+    return signalKey !== null && payload !== null
+      ? { kind: 'emit_signal', signalKey, payload }
+      : null;
   }
 
   addIssue(issues, `${path}.kind`, 'unknown_effect', `Effect ${input.kind} is not allow-listed.`);
@@ -434,12 +431,22 @@ function parseEffects(
 export function validateCaseDefinitionV1(input: unknown): CaseDefinitionValidationResultV1 {
   const issues: CaseDataIssueV1[] = [];
   if (!isRecord(input)) {
-    return { ok: false, issues: [{ path: '$', code: 'invalid_definition', message: 'Case definition must be an object.' }] };
+    return {
+      ok: false,
+      issues: [
+        { path: '$', code: 'invalid_definition', message: 'Case definition must be an object.' },
+      ],
+    };
   }
 
   exactKeys(input, ['schemaVersion', 'id', 'name', 'initialState', 'transitions'], '$', issues);
   if (input.schemaVersion !== CASE_DEFINITION_SCHEMA_VERSION) {
-    addIssue(issues, '$.schemaVersion', 'unsupported_version', 'Only CaseDefinition schemaVersion 1 is supported.');
+    addIssue(
+      issues,
+      '$.schemaVersion',
+      'unsupported_version',
+      'Only CaseDefinition schemaVersion 1 is supported.',
+    );
   }
   const id = parseSafeKey(input.id, '$.id', issues);
   const name = parseString(input.name, '$.name', issues);
@@ -448,7 +455,12 @@ export function validateCaseDefinitionV1(input: unknown): CaseDefinitionValidati
   const transitions: CaseTransitionV1[] = [];
   const transitionIds = new Set<string>();
   if (!Array.isArray(input.transitions) || input.transitions.length > MAX_TRANSITIONS) {
-    addIssue(issues, '$.transitions', 'invalid_transitions', `Transitions must be an array with at most ${MAX_TRANSITIONS} entries.`);
+    addIssue(
+      issues,
+      '$.transitions',
+      'invalid_transitions',
+      `Transitions must be an array with at most ${MAX_TRANSITIONS} entries.`,
+    );
   } else {
     for (const [index, raw] of input.transitions.entries()) {
       const path = `$.transitions[${index}]`;
@@ -459,13 +471,28 @@ export function validateCaseDefinitionV1(input: unknown): CaseDefinitionValidati
       exactKeys(raw, ['id', 'from', 'to', 'closureStatus', 'when', 'effects'], path, issues);
       const transitionId = parseSafeKey(raw.id, `${path}.id`, issues);
       if (transitionId !== null) {
-        if (transitionIds.has(transitionId)) addIssue(issues, `${path}.id`, 'duplicate_transition_id', 'Transition IDs must be unique.');
+        if (transitionIds.has(transitionId))
+          addIssue(
+            issues,
+            `${path}.id`,
+            'duplicate_transition_id',
+            'Transition IDs must be unique.',
+          );
         transitionIds.add(transitionId);
       }
 
       const from: CaseStateV1[] = [];
-      if (!Array.isArray(raw.from) || raw.from.length === 0 || raw.from.length > CASE_STATES_V1.length) {
-        addIssue(issues, `${path}.from`, 'invalid_from_states', 'Transition requires one or more valid source states.');
+      if (
+        !Array.isArray(raw.from) ||
+        raw.from.length === 0 ||
+        raw.from.length > CASE_STATES_V1.length
+      ) {
+        addIssue(
+          issues,
+          `${path}.from`,
+          'invalid_from_states',
+          'Transition requires one or more valid source states.',
+        );
       } else {
         for (const [stateIndex, state] of raw.from.entries()) {
           const parsed = parseCaseState(state, `${path}.from[${stateIndex}]`, issues);
@@ -489,7 +516,12 @@ export function validateCaseDefinitionV1(input: unknown): CaseDefinitionValidati
         });
         if (!validation.ok) {
           for (const ruleIssue of validation.issues) {
-            addIssue(issues, `${path}.when${ruleIssue.path}`, `rule_${ruleIssue.code}`, ruleIssue.message);
+            addIssue(
+              issues,
+              `${path}.when${ruleIssue.path}`,
+              `rule_${ruleIssue.code}`,
+              ruleIssue.message,
+            );
           }
         } else {
           when = validation.value.condition;
@@ -531,7 +563,8 @@ function parseActor(
     typeof input.role === 'string' && SCENE_CLOSURE_ROLES_V1.some((item) => item === input.role)
       ? (input.role as SceneClosureRoleV1)
       : null;
-  if (role === null) addIssue(issues, `${path}.role`, 'invalid_actor_role', 'Unknown closure actor role.');
+  if (role === null)
+    addIssue(issues, `${path}.role`, 'invalid_actor_role', 'Unknown closure actor role.');
   return id !== null && role !== null ? { id, role } : null;
 }
 
@@ -548,23 +581,43 @@ function parseCustomResolution(
   const toState = parseCaseState(input.toState, `${path}.toState`, issues);
   const reason = parseString(input.reason, `${path}.reason`, issues);
   const effects = parseEffects(input.effects, `${path}.effects`, issues);
-  return toState !== null && reason !== null && effects !== null ? { toState, reason, effects } : null;
+  return toState !== null && reason !== null && effects !== null
+    ? { toState, reason, effects }
+    : null;
 }
 
 export function validateSceneClosureV1(input: unknown): SceneClosureValidationResultV1 {
   const issues: CaseDataIssueV1[] = [];
   if (!isRecord(input)) {
-    return { ok: false, issues: [{ path: '$', code: 'invalid_closure', message: 'SceneClosure must be an object.' }] };
+    return {
+      ok: false,
+      issues: [{ path: '$', code: 'invalid_closure', message: 'SceneClosure must be an object.' }],
+    };
   }
 
   exactKeys(
     input,
-    ['schemaVersion', 'closureKey', 'caseId', 'status', 'summary', 'occurredAt', 'actor', 'outcome', 'customResolution'],
+    [
+      'schemaVersion',
+      'closureKey',
+      'caseId',
+      'status',
+      'summary',
+      'occurredAt',
+      'actor',
+      'outcome',
+      'customResolution',
+    ],
     '$',
     issues,
   );
   if (input.schemaVersion !== SCENE_CLOSURE_SCHEMA_VERSION) {
-    addIssue(issues, '$.schemaVersion', 'unsupported_version', 'Only SceneClosure schemaVersion 1 is supported.');
+    addIssue(
+      issues,
+      '$.schemaVersion',
+      'unsupported_version',
+      'Only SceneClosure schemaVersion 1 is supported.',
+    );
   }
   const closureKey = parseSafeKey(input.closureKey, '$.closureKey', issues);
   const caseId = parseSafeKey(input.caseId, '$.caseId', issues);
@@ -736,10 +789,18 @@ export function applySceneClosureV1(
   const definition = definitionValidation.value;
   const closure = closureValidation.value;
   if (runtime.caseId !== definition.id) {
-    return { ok: false, code: 'runtime_case_mismatch', message: 'Runtime does not belong to this Case definition.' };
+    return {
+      ok: false,
+      code: 'runtime_case_mismatch',
+      message: 'Runtime does not belong to this Case definition.',
+    };
   }
   if (closure.caseId !== definition.id) {
-    return { ok: false, code: 'closure_case_mismatch', message: 'SceneClosure targets a different Case.' };
+    return {
+      ok: false,
+      code: 'closure_case_mismatch',
+      message: 'SceneClosure targets a different Case.',
+    };
   }
 
   const fingerprint = fingerprintSceneClosureV1(closure);
@@ -782,7 +843,9 @@ export function applySceneClosureV1(
 
   const assessments = assessCaseTransitionsV1(definition, runtime, closure, context);
   const eligibleIds = new Set(
-    assessments.filter((assessment) => assessment.eligible).map((assessment) => assessment.transitionId),
+    assessments
+      .filter((assessment) => assessment.eligible)
+      .map((assessment) => assessment.transitionId),
   );
   const eligible = definition.transitions.filter((transition) => eligibleIds.has(transition.id));
 
@@ -790,7 +853,8 @@ export function applySceneClosureV1(
     return {
       ok: false,
       code: 'ambiguous_transition',
-      message: 'More than one Case transition is eligible; authoring must make the result deterministic.',
+      message:
+        'More than one Case transition is eligible; authoring must make the result deterministic.',
       assessments,
     };
   }
@@ -822,7 +886,8 @@ export function applySceneClosureV1(
   return {
     ok: false,
     code: 'no_transition',
-    message: 'Final SceneClosure has no eligible transition; narrator/admin may provide a structured custom resolution.',
+    message:
+      'Final SceneClosure has no eligible transition; narrator/admin may provide a structured custom resolution.',
     assessments,
   };
 }
