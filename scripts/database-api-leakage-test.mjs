@@ -96,14 +96,23 @@ assert(playerARows.length === 2, `player A expected 2 rows, received ${playerARo
 
 const playerAJson = JSON.stringify(playerARows);
 assert(!playerAJson.includes(SECRET_NAME), 'player A received the canonical secret location name');
-assert(!playerAJson.includes(CANONICAL_SECRET_ID), 'player A received the canonical secret location ID');
+assert(
+  !playerAJson.includes(CANONICAL_SECRET_ID),
+  'player A received the canonical secret location ID',
+);
 assert(!playerAJson.includes(CANONICAL_VILLAGE_ID), 'player A received a canonical location ID');
 assert(
   !playerAJson.includes(PLAYER_B_SECRET_PROJECTION_ID),
   'player A received player B projection-local ID',
 );
-assert(!('secret_payload' in playerARows[0]), 'player projection unexpectedly exposes secret_payload');
-assert(!('source_location_id' in playerARows[0]), 'player projection unexpectedly exposes source_location_id');
+assert(
+  !('secret_payload' in playerARows[0]),
+  'player projection unexpectedly exposes secret_payload',
+);
+assert(
+  !('source_location_id' in playerARows[0]),
+  'player projection unexpectedly exposes source_location_id',
+);
 
 const forbiddenColumnResponse = await request(
   env.API_URL,
