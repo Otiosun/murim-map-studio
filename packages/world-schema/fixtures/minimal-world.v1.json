@@ -1,0 +1,79 @@
+{
+  "format": "murim-world-pack",
+  "schemaVersion": 1,
+  "exportedAt": "2026-08-29T22:00:00Z",
+  "rootWorldId": "00000000-0000-4000-8000-000000000001",
+  "entities": [
+    {
+      "id": "00000000-0000-4000-8000-000000000001",
+      "type": "world",
+      "schemaVersion": 1,
+      "createdAt": "2026-08-29T22:00:00Z",
+      "updatedAt": "2026-08-29T22:00:00Z",
+      "name": "Murim",
+      "coordinateSystem": {
+        "kind": "planar",
+        "unit": "world-unit",
+        "origin": { "x": 0, "y": 0 }
+      }
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000002",
+      "type": "ring",
+      "schemaVersion": 1,
+      "createdAt": "2026-08-29T22:00:00Z",
+      "updatedAt": "2026-08-29T22:00:00Z",
+      "worldId": "00000000-0000-4000-8000-000000000001",
+      "name": "Círculo Exterior",
+      "depth": 0,
+      "center": { "x": 0, "y": 0 },
+      "innerRadius": 8000,
+      "outerRadius": 10000,
+      "tags": ["starter-ring"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000003",
+      "type": "location",
+      "schemaVersion": 1,
+      "createdAt": "2026-08-29T22:00:00Z",
+      "updatedAt": "2026-08-29T22:00:00Z",
+      "worldId": "00000000-0000-4000-8000-000000000001",
+      "name": "Vila Qinghe",
+      "locationKind": "village",
+      "position": { "x": 9000, "y": 0 },
+      "tags": ["social"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000004",
+      "type": "location",
+      "schemaVersion": 1,
+      "createdAt": "2026-08-29T22:00:00Z",
+      "updatedAt": "2026-08-29T22:00:00Z",
+      "worldId": "00000000-0000-4000-8000-000000000001",
+      "name": "Passagem Norte",
+      "locationKind": "mountain-pass",
+      "position": { "x": 8500, "y": 500 },
+      "tags": ["travel"]
+    },
+    {
+      "id": "00000000-0000-4000-8000-000000000005",
+      "type": "route",
+      "schemaVersion": 1,
+      "createdAt": "2026-08-29T22:00:00Z",
+      "updatedAt": "2026-08-29T22:00:00Z",
+      "worldId": "00000000-0000-4000-8000-000000000001",
+      "fromLocationId": "00000000-0000-4000-8000-000000000003",
+      "toLocationId": "00000000-0000-4000-8000-000000000004",
+      "routeKind": "road",
+      "path": {
+        "kind": "polyline",
+        "points": [
+          { "x": 9000, "y": 0 },
+          { "x": 8500, "y": 500 }
+        ]
+      },
+      "bidirectional": true,
+      "tags": []
+    }
+  ]
+}
