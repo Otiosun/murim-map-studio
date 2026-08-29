@@ -138,6 +138,50 @@ export type Database = {
       [_ in never]: never;
     };
   };
+  server_api: {
+    Tables: {
+      [_ in never]: never;
+    };
+    Views: {
+      [_ in never]: never;
+    };
+    Functions: {
+      commit_location_state_v1: {
+        Args: {
+          p_action: string;
+          p_actor_kind: string;
+          p_actor_ref: string;
+          p_area_id?: string;
+          p_correlation_id: string;
+          p_event_id: string;
+          p_event_kind: string;
+          p_event_payload: Json;
+          p_event_schema_version: number;
+          p_expected_revision: number;
+          p_is_secret?: boolean;
+          p_kind?: string;
+          p_location_id: string;
+          p_name?: string;
+          p_occurred_at: string;
+          p_payload?: Json;
+          p_source: string;
+          p_world_id: string;
+          p_x?: number;
+          p_y?: number;
+        };
+        Returns: {
+          applied: boolean;
+          committed_revision: number;
+        }[];
+      };
+    };
+    Enums: {
+      [_ in never]: never;
+    };
+    CompositeTypes: {
+      [_ in never]: never;
+    };
+  };
   world_private: {
     Tables: {
       areas: {
@@ -198,6 +242,7 @@ export type Database = {
           kind: string;
           name: string;
           payload: Json;
+          revision: number;
           secret_payload: Json;
           updated_at: string;
           world_id: string;
@@ -211,6 +256,7 @@ export type Database = {
           kind: string;
           name: string;
           payload?: Json;
+          revision?: number;
           secret_payload?: Json;
           updated_at?: string;
           world_id: string;
@@ -224,6 +270,7 @@ export type Database = {
           kind?: string;
           name?: string;
           payload?: Json;
+          revision?: number;
           secret_payload?: Json;
           updated_at?: string;
           world_id?: string;
@@ -347,6 +394,7 @@ export type Database = {
           id: string;
           name: string | null;
           payload: Json;
+          revision: number;
           secret_payload: Json;
           to_location_id: string;
           updated_at: string;
@@ -359,6 +407,7 @@ export type Database = {
           id: string;
           name?: string | null;
           payload?: Json;
+          revision?: number;
           secret_payload?: Json;
           to_location_id: string;
           updated_at?: string;
@@ -371,6 +420,7 @@ export type Database = {
           id?: string;
           name?: string | null;
           payload?: Json;
+          revision?: number;
           secret_payload?: Json;
           to_location_id?: string;
           updated_at?: string;
@@ -441,6 +491,68 @@ export type Database = {
           },
           {
             foreignKeyName: 'sectors_world_id_fkey';
+            columns: ['world_id'];
+            isOneToOne: false;
+            referencedRelation: 'worlds';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      world_event_ledger: {
+        Row: {
+          actor_kind: string;
+          actor_ref: string;
+          commit_fingerprint: Json;
+          correlation_id: string;
+          entity_id: string;
+          entity_revision: number;
+          entity_type: string;
+          event_id: string;
+          event_kind: string;
+          occurred_at: string;
+          payload: Json;
+          recorded_at: string;
+          schema_version: number;
+          source: string;
+          world_id: string;
+        };
+        Insert: {
+          actor_kind: string;
+          actor_ref: string;
+          commit_fingerprint: Json;
+          correlation_id: string;
+          entity_id: string;
+          entity_revision: number;
+          entity_type: string;
+          event_id: string;
+          event_kind: string;
+          occurred_at: string;
+          payload: Json;
+          recorded_at?: string;
+          schema_version: number;
+          source: string;
+          world_id: string;
+        };
+        Update: {
+          actor_kind?: string;
+          actor_ref?: string;
+          commit_fingerprint?: Json;
+          correlation_id?: string;
+          entity_id?: string;
+          entity_revision?: number;
+          entity_type?: string;
+          event_id?: string;
+          event_kind?: string;
+          occurred_at?: string;
+          payload?: Json;
+          recorded_at?: string;
+          schema_version?: number;
+          source?: string;
+          world_id?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'world_event_ledger_world_id_fkey';
             columns: ['world_id'];
             isOneToOne: false;
             referencedRelation: 'worlds';
@@ -609,6 +721,9 @@ export const Constants = {
     },
   },
   player_api: {
+    Enums: {},
+  },
+  server_api: {
     Enums: {},
   },
   world_private: {
