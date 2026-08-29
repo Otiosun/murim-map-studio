@@ -3,7 +3,7 @@ project_id = "murim-map-studio"
 [api]
 enabled = true
 port = 54321
-schemas = ["public", "storage", "graphql_public", "player_api"]
+schemas = ["public", "storage", "graphql_public", "player_api", "server_api"]
 extra_search_path = ["public", "extensions"]
 max_rows = 1000
 

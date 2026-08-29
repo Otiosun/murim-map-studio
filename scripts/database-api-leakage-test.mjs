@@ -65,6 +65,21 @@ async function request(apiUrl, anonKey, jwt, profile, path) {
   });
 }
 
+async function rpcRequest(apiUrl, anonKey, jwt, profile, functionName, body) {
+  return fetch(`${apiUrl}/rest/v1/rpc/${functionName}`, {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      'Accept-Profile': profile,
+      'Content-Profile': profile,
+      'Content-Type': 'application/json',
+      apikey: anonKey,
+      Authorization: `Bearer ${jwt}`,
+    },
+    body: JSON.stringify(body),
+  });
+}
+
 async function readJson(response, context) {
   const text = await response.text();
   assert(response.ok, `${context} failed (${response.status}): ${text}`);
@@ -135,6 +150,19 @@ const privateSchemaResponse = await request(
 );
 assert(!privateSchemaResponse.ok, 'world_private is unexpectedly exposed through PostgREST');
 
+const forbiddenServerMutation = await rpcRequest(
+  env.API_URL,
+  env.ANON_KEY,
+  playerAJwt,
+  'server_api',
+  'commit_location_state_v1',
+  {},
+);
+assert(
+  !forbiddenServerMutation.ok,
+  'authenticated player unexpectedly reached the trusted server mutation API',
+);
+
 const playerBResponse = await request(
   env.API_URL,
   env.ANON_KEY,
@@ -151,4 +179,6 @@ assert(
   'authorized player B did not receive the investigated secret projection',
 );
 
-console.log('PostgREST leakage smoke passed: private truth is not recoverable by player A.');
+console.log(
+  'PostgREST leakage smoke passed: private truth and trusted mutations are not reachable by player A.',
+);
