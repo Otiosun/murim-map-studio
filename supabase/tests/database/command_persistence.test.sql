@@ -1,6 +1,6 @@
 begin;
 
-select plan(15);
+select plan(17);
 
 select ok(
   has_schema_privilege('service_role', 'server_api', 'USAGE'),
