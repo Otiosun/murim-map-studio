@@ -30,9 +30,7 @@ export interface CommandMetadata {
   correlationId: string;
 }
 
-export type PropertyMutation =
-  | { operation: 'set'; value: JsonValue }
-  | { operation: 'unset' };
+export type PropertyMutation = { operation: 'set'; value: JsonValue } | { operation: 'unset' };
 
 export interface CreateEntityCommand {
   kind: 'CreateEntity';
@@ -165,8 +163,10 @@ const isStringArray = (value: JsonValue): boolean =>
   Array.isArray(value) && value.every((item) => typeof item === 'string');
 const isEntityType = (value: JsonValue): boolean =>
   typeof value === 'string' && ENTITY_TYPES.some((type) => type === value);
-const oneOf = (values: readonly string[]) => (value: JsonValue): boolean =>
-  typeof value === 'string' && values.includes(value);
+const oneOf =
+  (values: readonly string[]) =>
+  (value: JsonValue): boolean =>
+    typeof value === 'string' && values.includes(value);
 
 const stringRule: PropertyRule = { validate: isString };
 const optionalStringRule: PropertyRule = { validate: isString, canUnset: true };
@@ -353,7 +353,10 @@ function updatedEntity(entity: WorldEntity, issuedAt: IsoTimestamp): WorldEntity
   return { ...entity, updatedAt: issuedAt } as WorldEntity;
 }
 
-function applyCreate(document: WorldDocument, command: WorldCommand & { payload: CreateEntityCommand }): CommandApplyResult {
+function applyCreate(
+  document: WorldDocument,
+  command: WorldCommand & { payload: CreateEntityCommand },
+): CommandApplyResult {
   const entity = updatedEntity(structuredClone(command.payload.entity), command.meta.issuedAt);
   const nextDocument: WorldDocument = {
     ...document,
@@ -369,12 +372,18 @@ function applyCreate(document: WorldDocument, command: WorldCommand & { payload:
   );
 }
 
-function applyMove(document: WorldDocument, command: WorldCommand & { payload: MoveEntityCommand }): CommandApplyResult {
+function applyMove(
+  document: WorldDocument,
+  command: WorldCommand & { payload: MoveEntityCommand },
+): CommandApplyResult {
   const target = entityById(document, command.payload.entityId);
   if (!target) {
     return {
       ok: false,
-      error: { code: 'entity_not_found', message: `Entity ${command.payload.entityId} does not exist.` },
+      error: {
+        code: 'entity_not_found',
+        message: `Entity ${command.payload.entityId} does not exist.`,
+      },
     };
   }
 
@@ -393,7 +402,10 @@ function applyMove(document: WorldDocument, command: WorldCommand & { payload: M
   const changed = new Set<EntityId>([target.id]);
 
   const entities = document.entities.map((entity) => {
-    if (entity.id === target.id && (entity.type === 'location' || entity.type === 'resource-site')) {
+    if (
+      entity.id === target.id &&
+      (entity.type === 'location' || entity.type === 'resource-site')
+    ) {
       return { ...entity, position: nextPosition, updatedAt: command.meta.issuedAt };
     }
 
@@ -444,7 +456,10 @@ function applyUpdateProperty(
   if (!target) {
     return {
       ok: false,
-      error: { code: 'entity_not_found', message: `Entity ${command.payload.entityId} does not exist.` },
+      error: {
+        code: 'entity_not_found',
+        message: `Entity ${command.payload.entityId} does not exist.`,
+      },
     };
   }
 
@@ -560,7 +575,10 @@ function applyConnectRoute(
     routeKind: command.payload.routeKind,
     path: command.payload.path
       ? structuredClone(command.payload.path)
-      : { kind: 'polyline', points: [structuredClone(from.position), structuredClone(to.position)] },
+      : {
+          kind: 'polyline',
+          points: [structuredClone(from.position), structuredClone(to.position)],
+        },
     bidirectional: command.payload.bidirectional,
     tags: [...command.payload.tags],
   };
@@ -582,12 +600,18 @@ function applyConnectRoute(
   );
 }
 
-function applyDelete(document: WorldDocument, command: WorldCommand & { payload: DeleteEntityCommand }): CommandApplyResult {
+function applyDelete(
+  document: WorldDocument,
+  command: WorldCommand & { payload: DeleteEntityCommand },
+): CommandApplyResult {
   const target = entityById(document, command.payload.entityId);
   if (!target) {
     return {
       ok: false,
-      error: { code: 'entity_not_found', message: `Entity ${command.payload.entityId} does not exist.` },
+      error: {
+        code: 'entity_not_found',
+        message: `Entity ${command.payload.entityId} does not exist.`,
+      },
     };
   }
 
@@ -625,7 +649,10 @@ function applyRestore(
   );
 }
 
-export function applyWorldCommand(document: WorldDocument, command: WorldCommand): CommandApplyResult {
+export function applyWorldCommand(
+  document: WorldDocument,
+  command: WorldCommand,
+): CommandApplyResult {
   const invalidMetadata = metadataError(command.meta);
   if (invalidMetadata) {
     return invalidMetadata;
@@ -642,7 +669,10 @@ export function applyWorldCommand(document: WorldDocument, command: WorldCommand
         command as WorldCommand & { payload: UpdatePropertyCommand },
       );
     case 'ConnectRoute':
-      return applyConnectRoute(document, command as WorldCommand & { payload: ConnectRouteCommand });
+      return applyConnectRoute(
+        document,
+        command as WorldCommand & { payload: ConnectRouteCommand },
+      );
     case 'DeleteEntity':
       return applyDelete(document, command as WorldCommand & { payload: DeleteEntityCommand });
     case 'RestoreEntity':

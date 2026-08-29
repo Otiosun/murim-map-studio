@@ -80,7 +80,13 @@ function document(): WorldDocument {
   return {
     schemaVersion: 1,
     rootWorldId: WORLD_ID,
-    entities: [structuredClone(world), structuredClone(locationA), structuredClone(locationB), structuredClone(locationC), structuredClone(route)],
+    entities: [
+      structuredClone(world),
+      structuredClone(locationA),
+      structuredClone(locationB),
+      structuredClone(locationC),
+      structuredClone(route),
+    ],
   };
 }
 
@@ -98,10 +104,7 @@ function command(metaId: string, payload: WorldCommand['payload']): WorldCommand
   return { meta: meta(metaId), payload };
 }
 
-function entity<T extends LocationEntity | RouteEntity>(
-  value: WorldDocument,
-  id: string,
-): T {
+function entity<T extends LocationEntity | RouteEntity>(value: WorldDocument, id: string): T {
   const found = value.entities.find((candidate) => candidate.id === id);
   if (!found) {
     throw new Error(`Missing test entity ${id}`);
@@ -144,8 +147,14 @@ describe('Command Engine V0', () => {
     expect(moved.ok).toBe(true);
     if (!moved.ok) return;
     expect(moved.history.past).toHaveLength(1);
-    expect(entity<LocationEntity>(moved.document, LOCATION_A_ID).position).toEqual({ x: 180, y: 210 });
-    expect(entity<RouteEntity>(moved.document, ROUTE_ID).path.points[0]).toEqual({ x: 180, y: 210 });
+    expect(entity<LocationEntity>(moved.document, LOCATION_A_ID).position).toEqual({
+      x: 180,
+      y: 210,
+    });
+    expect(entity<RouteEntity>(moved.document, ROUTE_ID).path.points[0]).toEqual({
+      x: 180,
+      y: 210,
+    });
 
     const undone = undoWithHistory(
       moved.document,
@@ -154,8 +163,12 @@ describe('Command Engine V0', () => {
     );
     expect(undone.ok).toBe(true);
     if (!undone.ok) return;
-    expect(entity<LocationEntity>(undone.document, LOCATION_A_ID).position).toEqual(locationA.position);
-    expect(entity<RouteEntity>(undone.document, ROUTE_ID).path.points[0]).toEqual(locationA.position);
+    expect(entity<LocationEntity>(undone.document, LOCATION_A_ID).position).toEqual(
+      locationA.position,
+    );
+    expect(entity<RouteEntity>(undone.document, ROUTE_ID).path.points[0]).toEqual(
+      locationA.position,
+    );
     expect(undone.auditEvent.payload.historyOperation).toBe('undo');
 
     const redone = redoWithHistory(
@@ -165,7 +178,10 @@ describe('Command Engine V0', () => {
     );
     expect(redone.ok).toBe(true);
     if (!redone.ok) return;
-    expect(entity<LocationEntity>(redone.document, LOCATION_A_ID).position).toEqual({ x: 180, y: 210 });
+    expect(entity<LocationEntity>(redone.document, LOCATION_A_ID).position).toEqual({
+      x: 180,
+      y: 210,
+    });
     expect(redone.auditEvent.payload.historyOperation).toBe('redo');
   });
 
