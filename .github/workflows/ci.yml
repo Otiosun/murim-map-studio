@@ -90,6 +90,9 @@ jobs:
       - name: RLS and leakage tests
         run: pnpm db:test
 
+      - name: PostgREST API leakage smoke
+        run: node scripts/database-api-leakage-test.mjs
+
       - name: Verify generated database types are current
         run: |
           pnpm db:types > supabase/database.types.generated.ts
