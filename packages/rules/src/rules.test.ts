@@ -76,7 +76,10 @@ describe('Rule Engine V1', () => {
           op: 'or',
           conditions: [
             { op: 'compare', factKey: 'weather', operator: 'eq', value: 'clear' },
-            { op: 'not', condition: { op: 'compare', factKey: 'weather', operator: 'eq', value: 'clear' } },
+            {
+              op: 'not',
+              condition: { op: 'compare', factKey: 'weather', operator: 'eq', value: 'clear' },
+            },
           ],
         },
       ],
@@ -132,13 +135,37 @@ describe('Rule Engine V1', () => {
     const definition = rule({
       op: 'and',
       conditions: [
-        { op: 'reputation', actorId: 'player-a', factionId: 'faction-crane', operator: 'gte', value: 40 },
+        {
+          op: 'reputation',
+          actorId: 'player-a',
+          factionId: 'faction-crane',
+          operator: 'gte',
+          value: 40,
+        },
         { op: 'case_state', caseId: 'case-missing', states: ['active', 'paused'] },
         { op: 'world_clock', clockKey: 'missing-villagers', operator: 'lt', value: 5 },
-        { op: 'location_state', locationId: 'loc-qinghe', field: 'access.northGate', operator: 'eq', value: 'open' },
-        { op: 'faction_state', factionId: 'faction-crane', field: 'pressure', operator: 'gte', value: 7 },
+        {
+          op: 'location_state',
+          locationId: 'loc-qinghe',
+          field: 'access.northGate',
+          operator: 'eq',
+          value: 'open',
+        },
+        {
+          op: 'faction_state',
+          factionId: 'faction-crane',
+          field: 'pressure',
+          operator: 'gte',
+          value: 7,
+        },
         { op: 'inventory', ownerId: 'player-a', itemKey: 'talisman', operator: 'gte', quantity: 2 },
-        { op: 'attribute', entityId: 'player-a', field: 'cultivation.realm', operator: 'gte', value: 3 },
+        {
+          op: 'attribute',
+          entityId: 'player-a',
+          field: 'cultivation.realm',
+          operator: 'gte',
+          value: 3,
+        },
       ],
     });
 
@@ -158,10 +185,17 @@ describe('Rule Engine V1', () => {
     const unknownField = validateRuleDefinitionV1({
       schemaVersion: 1,
       id: 'rule-x',
-      condition: { op: 'compare', factKey: 'weather', operator: 'eq', value: 'rain', script: 'hack()' },
+      condition: {
+        op: 'compare',
+        factKey: 'weather',
+        operator: 'eq',
+        value: 'rain',
+        script: 'hack()',
+      },
     });
     expect(unknownField.ok).toBe(false);
-    if (!unknownField.ok) expect(unknownField.issues.some((item) => item.code === 'unknown_field')).toBe(true);
+    if (!unknownField.ok)
+      expect(unknownField.issues.some((item) => item.code === 'unknown_field')).toBe(true);
 
     const arbitraryCode = validateRuleDefinitionV1({
       schemaVersion: 1,
@@ -204,6 +238,7 @@ describe('Rule Engine V1', () => {
 
     const validation = validateRuleDefinitionV1({ schemaVersion: 1, id: 'rule-deep', condition });
     expect(validation.ok).toBe(false);
-    if (!validation.ok) expect(validation.issues.some((item) => item.code === 'depth_limit')).toBe(true);
+    if (!validation.ok)
+      expect(validation.issues.some((item) => item.code === 'depth_limit')).toBe(true);
   });
 });

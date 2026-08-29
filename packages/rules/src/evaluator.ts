@@ -80,25 +80,40 @@ function evaluateCondition(
   if (condition.op === 'and') {
     const children = condition.conditions.map((child) => evaluateCondition(child, context));
     const passed = children.every((child) => child.passed);
-    return trace('and', passed, passed ? 'All conditions passed.' : 'At least one condition failed.', {
-      children,
-    });
+    return trace(
+      'and',
+      passed,
+      passed ? 'All conditions passed.' : 'At least one condition failed.',
+      {
+        children,
+      },
+    );
   }
 
   if (condition.op === 'or') {
     const children = condition.conditions.map((child) => evaluateCondition(child, context));
     const passed = children.some((child) => child.passed);
-    return trace('or', passed, passed ? 'At least one condition passed.' : 'All conditions failed.', {
-      children,
-    });
+    return trace(
+      'or',
+      passed,
+      passed ? 'At least one condition passed.' : 'All conditions failed.',
+      {
+        children,
+      },
+    );
   }
 
   if (condition.op === 'not') {
     const child = evaluateCondition(condition.condition, context);
     const passed = !child.passed;
-    return trace('not', passed, passed ? 'Nested condition did not pass.' : 'Nested condition passed.', {
-      children: [child],
-    });
+    return trace(
+      'not',
+      passed,
+      passed ? 'Nested condition did not pass.' : 'Nested condition passed.',
+      {
+        children: [child],
+      },
+    );
   }
 
   if (condition.op === 'compare') {

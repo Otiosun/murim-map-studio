@@ -21,12 +21,7 @@ interface ParseBudget {
   nodes: number;
 }
 
-function issue(
-  issues: RuleValidationIssueV1[],
-  path: string,
-  code: string,
-  message: string,
-): void {
+function issue(issues: RuleValidationIssueV1[], path: string, code: string, message: string): void {
   issues.push({ path, code, message });
 }
 
@@ -207,7 +202,13 @@ function parseCondition(
     }
     const conditions: RuleConditionV1[] = [];
     for (const [index, child] of input.conditions.entries()) {
-      const parsed = parseCondition(child, `${path}.conditions[${index}]`, depth + 1, budget, issues);
+      const parsed = parseCondition(
+        child,
+        `${path}.conditions[${index}]`,
+        depth + 1,
+        budget,
+        issues,
+      );
       if (parsed !== null) conditions.push(parsed);
     }
     if (conditions.length !== input.conditions.length) return null;
@@ -216,7 +217,13 @@ function parseCondition(
 
   if (op === 'not') {
     exactKeys(input, ['op', 'condition'], path, issues);
-    const condition = parseCondition(input.condition, `${path}.condition`, depth + 1, budget, issues);
+    const condition = parseCondition(
+      input.condition,
+      `${path}.condition`,
+      depth + 1,
+      budget,
+      issues,
+    );
     return condition === null ? null : { op: 'not', condition };
   }
 
@@ -260,7 +267,12 @@ function parseCondition(
       if (parsed !== null && parsed >= 0 && parsed <= 1) {
         minConfidence = parsed;
       } else if (parsed !== null) {
-        issue(issues, `${path}.minConfidence`, 'invalid_confidence', 'Confidence must be between 0 and 1.');
+        issue(
+          issues,
+          `${path}.minConfidence`,
+          'invalid_confidence',
+          'Confidence must be between 0 and 1.',
+        );
       }
     }
 
@@ -303,7 +315,8 @@ function parseCondition(
   }
 
   if (op === 'location_state' || op === 'faction_state' || op === 'attribute') {
-    const idKey = op === 'location_state' ? 'locationId' : op === 'faction_state' ? 'factionId' : 'entityId';
+    const idKey =
+      op === 'location_state' ? 'locationId' : op === 'faction_state' ? 'factionId' : 'entityId';
     exactKeys(input, ['op', idKey, 'field', 'operator', 'value'], path, issues);
     const id = parseSafeKey(input[idKey], `${path}.${idKey}`, issues);
     const field = parseSafeKey(input.field, `${path}.field`, issues);
@@ -341,7 +354,12 @@ export function validateRuleDefinitionV1(input: unknown): RuleValidationResultV1
 
   exactKeys(input, ['schemaVersion', 'id', 'name', 'condition'], '$', issues);
   if (input.schemaVersion !== RULE_SCHEMA_VERSION) {
-    issue(issues, '$.schemaVersion', 'unsupported_version', 'Only rule schemaVersion 1 is supported.');
+    issue(
+      issues,
+      '$.schemaVersion',
+      'unsupported_version',
+      'Only rule schemaVersion 1 is supported.',
+    );
   }
   const id = parseSafeKey(input.id, '$.id', issues);
   let name: string | undefined;

@@ -194,8 +194,7 @@ export interface RuleValidationIssueV1 {
 }
 
 export type RuleValidationResultV1 =
-  | { ok: true; value: RuleDefinitionV1 }
-  | { ok: false; issues: RuleValidationIssueV1[] };
+  { ok: true; value: RuleDefinitionV1 } | { ok: false; issues: RuleValidationIssueV1[] };
 
 export const RULE_AST_LIMITS_V1 = {
   maxDepth: 16,
