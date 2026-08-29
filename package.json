@@ -15,7 +15,12 @@
     "format:check": "prettier --check .",
     "typecheck": "turbo typecheck",
     "test": "vitest run --passWithNoTests",
-    "test:e2e": "node scripts/e2e-not-enabled.mjs"
+    "test:e2e": "node scripts/e2e-not-enabled.mjs",
+    "db:start": "supabase start",
+    "db:stop": "supabase stop --no-backup",
+    "db:reset": "supabase db reset --local",
+    "db:test": "supabase test db",
+    "db:types": "supabase gen types typescript --local --schema player_api,world_private,app_private"
   },
   "devDependencies": {
     "@types/node": "24.13.3",
@@ -24,6 +29,7 @@
     "eslint": "9.39.5",
     "eslint-config-next": "16.3.3",
     "prettier": "3.9.6",
+    "supabase": "2.115.0",
     "turbo": "2.10.12",
     "typescript": "6.0.2",
     "vitest": "4.1.11"
