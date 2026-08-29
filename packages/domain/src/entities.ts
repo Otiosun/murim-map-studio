@@ -161,12 +161,7 @@ export type KnowledgeTarget =
   | { kind: 'ghost'; ghostKey: string };
 
 export type KnowledgeSourceKind =
-  | 'system'
-  | 'exploration'
-  | 'npc'
-  | 'player'
-  | 'document'
-  | 'scene';
+  'system' | 'exploration' | 'npc' | 'player' | 'document' | 'scene';
 
 export interface KnowledgeSource {
   kind: KnowledgeSourceKind;

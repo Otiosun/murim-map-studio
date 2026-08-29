@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import type { LocationEntity, RingEntity, RouteEntity, WorldDocument, WorldEntityRoot } from './index';
+import type {
+  LocationEntity,
+  RingEntity,
+  RouteEntity,
+  WorldDocument,
+  WorldEntityRoot,
+} from './index';
 import { validateWorldDocument } from './index';
 
 const NOW = '2026-08-29T22:00:00Z';
@@ -70,7 +76,11 @@ const route: RouteEntity = {
 };
 
 function validDocument(): WorldDocument {
-  return { schemaVersion: 1, rootWorldId: WORLD_ID, entities: [world, ring, locationA, locationB, route] };
+  return {
+    schemaVersion: 1,
+    rootWorldId: WORLD_ID,
+    entities: [world, ring, locationA, locationB, route],
+  };
 }
 
 describe('validateWorldDocument', () => {
@@ -82,7 +92,9 @@ describe('validateWorldDocument', () => {
     const document = validDocument();
     document.entities.push({ ...locationA });
 
-    expect(validateWorldDocument(document).some((issue) => issue.code === 'duplicate_id')).toBe(true);
+    expect(validateWorldDocument(document).some((issue) => issue.code === 'duplicate_id')).toBe(
+      true,
+    );
   });
 
   it('rejects references whose target has the wrong semantic type', () => {
@@ -104,7 +116,9 @@ describe('validateWorldDocument', () => {
         : entity,
     );
 
-    expect(validateWorldDocument(document).some((issue) => issue.code === 'invalid_geometry')).toBe(true);
+    expect(validateWorldDocument(document).some((issue) => issue.code === 'invalid_geometry')).toBe(
+      true,
+    );
   });
 
   it('rejects invalid radial ring bounds', () => {
@@ -113,6 +127,8 @@ describe('validateWorldDocument', () => {
       entity.type === 'ring' ? { ...entity, innerRadius: 10000, outerRadius: 9000 } : entity,
     );
 
-    expect(validateWorldDocument(document).some((issue) => issue.code === 'invalid_ring')).toBe(true);
+    expect(validateWorldDocument(document).some((issue) => issue.code === 'invalid_ring')).toBe(
+      true,
+    );
   });
 });

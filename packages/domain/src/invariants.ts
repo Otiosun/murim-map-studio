@@ -305,10 +305,7 @@ export function validateWorldDocument(document: WorldDocument): DomainIssue[] {
       });
     }
 
-    if (
-      entity.type === 'route' &&
-      entity.fromLocationId === entity.toLocationId
-    ) {
+    if (entity.type === 'route' && entity.fromLocationId === entity.toLocationId) {
       issues.push({
         code: 'self_route',
         entityId: entity.id,

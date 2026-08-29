@@ -53,7 +53,11 @@ const worldSchema = z
     type: z.literal('world'),
     name: nonEmptyString,
     coordinateSystem: z
-      .object({ kind: z.literal('planar'), unit: z.literal('world-unit'), origin: worldPointSchema })
+      .object({
+        kind: z.literal('planar'),
+        unit: z.literal('world-unit'),
+        origin: worldPointSchema,
+      })
       .strict(),
   })
   .strict();

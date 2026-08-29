@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { deserializeWorldPack, mapProjectionSchema, parseWorldPack, serializeWorldPack } from './index';
+import {
+  deserializeWorldPack,
+  mapProjectionSchema,
+  parseWorldPack,
+  serializeWorldPack,
+} from './index';
 
 const NOW = '2026-08-29T22:00:00Z';
 const WORLD_ID = '00000000-0000-4000-8000-000000000001';
@@ -21,7 +26,11 @@ function validPack() {
         createdAt: NOW,
         updatedAt: NOW,
         name: 'Murim',
-        coordinateSystem: { kind: 'planar' as const, unit: 'world-unit' as const, origin: { x: 0, y: 0 } },
+        coordinateSystem: {
+          kind: 'planar' as const,
+          unit: 'world-unit' as const,
+          origin: { x: 0, y: 0 },
+        },
       },
       {
         id: LOCATION_A_ID,
@@ -57,7 +66,13 @@ function validPack() {
         fromLocationId: LOCATION_A_ID,
         toLocationId: LOCATION_B_ID,
         routeKind: 'road',
-        path: { kind: 'polyline' as const, points: [{ x: 9000, y: 0 }, { x: 8500, y: 500 }] },
+        path: {
+          kind: 'polyline' as const,
+          points: [
+            { x: 9000, y: 0 },
+            { x: 8500, y: 500 },
+          ],
+        },
         bidirectional: true,
         tags: [],
       },
@@ -75,7 +90,10 @@ describe('worldPackSchema', () => {
 
   it('rejects semantic references that point to the wrong type', () => {
     const pack = validPack();
-    pack.entities[3] = { ...pack.entities[3], toLocationId: WORLD_ID } as (typeof pack.entities)[number];
+    pack.entities[3] = {
+      ...pack.entities[3],
+      toLocationId: WORLD_ID,
+    } as (typeof pack.entities)[number];
 
     expect(() => parseWorldPack(pack)).toThrow(/invalid_reference_type/);
   });
