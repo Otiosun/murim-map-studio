@@ -62,13 +62,27 @@ importers:
 
   packages/domain: {}
 
-  packages/map-renderer: {}
+  packages/map-renderer:
+    dependencies:
+      '@murim/domain':
+        specifier: workspace:*
+        version: link:../domain
 
   packages/rules: {}
 
   packages/ui: {}
 
-  packages/world-schema: {}
+  packages/world-schema:
+    dependencies:
+      '@murim/domain':
+        specifier: workspace:*
+        version: link:../domain
+      '@murim/map-renderer':
+        specifier: workspace:*
+        version: link:../map-renderer
+      zod:
+        specifier: 4.4.3
+        version: 4.4.3
 
 packages:
 
@@ -2240,6 +2254,9 @@ packages:
     engines: {node: '>=18.0.0'}
     peerDependencies:
       zod: ^3.25.0 || ^4.0.0
+
+  zod@4.4.3:
+    resolution: {integrity: sha512-ytENFjIJFl2UwYglde2jchW2Hwm4GJFLDiSXWdTrJQBIN9Fcyp7n4DhxJEiWNAJMV1/BqWfW/kkg71UDcHJyTQ==}
 
   zod@4.5.1:
     resolution: {integrity: sha512-P3GqeAEOEDqKvafVGLezbg+39YW/ze4xrD4qdS0adOY8eoI3zfjv1PQM4UwQzgT8mZKXEbqtVt8K+ZKGqkMFKg==}
@@ -4557,5 +4574,7 @@ snapshots:
   zod-validation-error@4.0.2(zod@4.5.1):
     dependencies:
       zod: 4.5.1
+
+  zod@4.4.3: {}
 
   zod@4.5.1: {}
