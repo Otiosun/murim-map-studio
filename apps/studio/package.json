@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@murim/domain": "workspace:*",
+    "@murim/world-schema": "workspace:*",
     "konva": "10.0.8",
     "next": "16.3.3",
     "react": "19.2.7",
