@@ -12,7 +12,7 @@ import {
 import { z } from 'zod';
 import { worldEntitySchema, worldPointSchema } from './schemas';
 
-export const MAX_ASSET_UPLOAD_BYTES = 5 * 1024 * 1024;
+export const MAX_ASSET_UPLOAD_BYTES = 2 * 1024 * 1024;
 
 const positiveSizeSchema = z
   .object({ width: z.number().finite().positive(), height: z.number().finite().positive() })
