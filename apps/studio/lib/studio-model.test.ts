@@ -11,6 +11,11 @@ import {
 } from '@murim/domain';
 import { describe, expect, it } from 'vitest';
 import {
+  BUILT_IN_ASSET_ENTITIES,
+  LEGACY_STUDIO_WORLD_ID,
+  STUDIO_WORLD_ID,
+} from './studio-assets';
+import {
   createInitialWorldDocument,
   decodeStudioDocument,
   encodeStudioDocument,
@@ -49,7 +54,7 @@ function location(id: string, name: string, x: number, y: number): LocationEntit
     schemaVersion: 1,
     createdAt: WORLD_NOW,
     updatedAt: WORLD_NOW,
-    worldId: 'world-murim-v0',
+    worldId: STUDIO_WORLD_ID,
     name,
     locationKind: 'place',
     position: { x, y },
@@ -154,5 +159,78 @@ describe('Studio V0 model', () => {
       'name',
       'locationKind',
     ]);
+  });
+
+  it('migrates the legacy Studio world id and preserves scoped entities', () => {
+    const legacy: WorldDocument = {
+      schemaVersion: 1,
+      rootWorldId: LEGACY_STUDIO_WORLD_ID,
+      entities: [
+        {
+          id: LEGACY_STUDIO_WORLD_ID,
+          type: 'world',
+          schemaVersion: 1,
+          createdAt: WORLD_NOW,
+          updatedAt: WORLD_NOW,
+          name: 'Legado',
+          coordinateSystem: {
+            kind: 'planar',
+            unit: 'world-unit',
+            origin: { x: 0, y: 0 },
+          },
+        },
+        {
+          ...location('legacy-location', 'Legado', 10, 20),
+          worldId: LEGACY_STUDIO_WORLD_ID,
+        },
+      ],
+    };
+
+    const decoded = decodeStudioDocument(
+      JSON.stringify({ schemaVersion: 1, savedAt: WORLD_NOW, document: legacy }),
+    );
+    expect(decoded.ok).toBe(true);
+    if (!decoded.ok) throw new Error(decoded.reason);
+
+    expect(decoded.envelope.document.rootWorldId).toBe(STUDIO_WORLD_ID);
+    const migrated = decoded.envelope.document.entities.find(
+      (entity) => entity.id === 'legacy-location',
+    );
+    expect(migrated && 'worldId' in migrated ? migrated.worldId : null).toBe(STUDIO_WORLD_ID);
+    expect(
+      decoded.envelope.document.entities.filter((entity) => entity.type === 'asset').length,
+    ).toBe(BUILT_IN_ASSET_ENTITIES.length);
+  });
+
+  it('swaps a Location asset through a Command without changing semantic identity', () => {
+    sequence = 0;
+    let document = createInitialWorldDocument(WORLD_NOW);
+    let history = createCommandHistory();
+    const original = location('location-asset-test', 'Vila Qinghe', 320, 180);
+
+    ({ document, history } = run(document, history, {
+      kind: 'CreateEntity',
+      entity: original,
+    }));
+
+    const assetId = BUILT_IN_ASSET_ENTITIES[0]?.id;
+    if (!assetId) throw new Error('Built-in asset library is empty.');
+
+    ({ document, history } = run(document, history, {
+      kind: 'UpdateProperty',
+      entityId: original.id,
+      property: 'assetId',
+      mutation: { operation: 'set', value: assetId },
+    }));
+
+    const changed = document.entities.find((entity) => entity.id === original.id);
+    expect(changed?.type).toBe('location');
+    if (!changed || changed.type !== 'location') throw new Error('Location disappeared.');
+
+    expect(changed.id).toBe(original.id);
+    expect(changed.name).toBe(original.name);
+    expect(changed.position).toEqual(original.position);
+    expect(changed.assetId).toBe(assetId);
+    expect(history.past).toHaveLength(2);
   });
 });
