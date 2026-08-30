@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 import { createPlayerSessionUpdater } from './proxy';
 
 describe('createPlayerSessionUpdater', () => {
-  it('validates claims and forwards refreshed cookies and cache headers', async () => {
+  it('validates claims and propagates refreshed session cookies plus anti-cache headers', async () => {
     const getClaims = vi.fn(async () => ({ data: { claims: { sub: 'player-a' } }, error: null }));
     const createClient = vi.fn((cookieStore) => {
       cookieStore.setAll(
