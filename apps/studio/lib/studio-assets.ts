@@ -301,5 +301,14 @@ export function prepareStudioAssetImport(
     };
   }
 
-  return undefined;
+  const sanitizedMarkup = options.sanitizeSvg(input.content);
+  return {
+    ok: true as const,
+    draft: true as const,
+    fileName: input.fileName,
+    mediaType: 'image/svg+xml' as const,
+    size: input.size,
+    previewSource: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizedMarkup)}`,
+    sanitized: true as const,
+  };
 }
