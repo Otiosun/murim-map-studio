@@ -13,6 +13,7 @@ interface StudioLibraryPanelProps {
   onSelectAsset: (manifest: AssetManifest) => void;
   onClearAsset: () => void;
   onSelectTemplate: (template: TemplateEntity) => void;
+  onImportFile?: (file: File) => void;
   onClose: () => void;
 }
 
@@ -33,6 +34,7 @@ export function StudioLibraryPanel({
   onSelectAsset,
   onClearAsset,
   onSelectTemplate,
+  onImportFile,
   onClose,
 }: StudioLibraryPanelProps) {
   const assets = searchStudioAssets(query);
@@ -68,38 +70,56 @@ export function StudioLibraryPanel({
       </div>
 
       {mode === 'assets' ? (
-        <div className="library-list">
-          <button
-            type="button"
-            className={!selectedAssetId ? 'library-card selected' : 'library-card'}
-            onClick={onClearAsset}
-          >
-            <span className="asset-preview asset-preview-empty">·</span>
+        <>
+          <label className="library-import">
             <span>
-              <strong>Sem símbolo</strong>
-              <small>Location continua existindo semanticamente.</small>
+              <strong>Importar asset</strong>
+              <small>SVG, WebP ou PNG · máximo 2 MiB</small>
             </span>
-          </button>
-          {assets.map((manifest) => (
+            <input
+              type="file"
+              accept="image/svg+xml,image/webp,image/png"
+              onChange={(event) => {
+                const file = event.currentTarget.files?.item(0);
+                if (file) onImportFile?.(file);
+                event.currentTarget.value = '';
+              }}
+            />
+          </label>
+
+          <div className="library-list">
             <button
               type="button"
-              className={
-                selectedAssetId === manifest.assetId ? 'library-card selected' : 'library-card'
-              }
-              key={manifest.assetId}
-              onClick={() => onSelectAsset(manifest)}
+              className={!selectedAssetId ? 'library-card selected' : 'library-card'}
+              onClick={onClearAsset}
             >
-              <span className="asset-preview">
-                <img src={manifest.source} alt="" />
-              </span>
+              <span className="asset-preview asset-preview-empty">·</span>
               <span>
-                <strong>{manifest.name}</strong>
-                <small>{manifest.tags.slice(0, 3).join(' · ')}</small>
+                <strong>Sem símbolo</strong>
+                <small>Location continua existindo semanticamente.</small>
               </span>
             </button>
-          ))}
-          {assets.length === 0 ? <p className="library-empty">Nenhum símbolo encontrado.</p> : null}
-        </div>
+            {assets.map((manifest) => (
+              <button
+                type="button"
+                className={
+                  selectedAssetId === manifest.assetId ? 'library-card selected' : 'library-card'
+                }
+                key={manifest.assetId}
+                onClick={() => onSelectAsset(manifest)}
+              >
+                <span className="asset-preview">
+                  <img src={manifest.source} alt="" />
+                </span>
+                <span>
+                  <strong>{manifest.name}</strong>
+                  <small>{manifest.tags.slice(0, 3).join(' · ')}</small>
+                </span>
+              </button>
+            ))}
+            {assets.length === 0 ? <p className="library-empty">Nenhum símbolo encontrado.</p> : null}
+          </div>
+        </>
       ) : (
         <div className="library-list">
           {templates.map((template) => (
