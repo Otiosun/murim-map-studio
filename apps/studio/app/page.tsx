@@ -1,5 +1,5 @@
-import { StudioApp } from './studio-app';
+import { StudioAppV2 } from './studio-app-v2';
 
 export default function StudioHome() {
-  return <StudioApp />;
+  return <StudioAppV2 />;
 }
