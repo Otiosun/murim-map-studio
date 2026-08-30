@@ -5,15 +5,27 @@ import { BUILT_IN_TEMPLATES, searchStudioAssets } from '../lib/studio-assets';
 
 export type StudioLibraryMode = 'assets' | 'templates';
 
+export interface StudioAssetImportDraft {
+  fileName: string;
+  mediaType: string;
+  size: number;
+  previewSource: string;
+  sanitized: boolean;
+}
+
 interface StudioLibraryPanelProps {
   mode: StudioLibraryMode;
   query: string;
   selectedAssetId?: string | undefined;
+  importDraft?: StudioAssetImportDraft | undefined;
+  importError?: string | undefined;
   onQueryChange: (query: string) => void;
   onSelectAsset: (manifest: AssetManifest) => void;
   onClearAsset: () => void;
   onSelectTemplate: (template: TemplateEntity) => void;
   onImportFile?: (file: File) => void;
+  onCancelImport?: () => void;
+  onConfirmImport?: () => void;
   onClose: () => void;
 }
 
@@ -26,15 +38,26 @@ function matchesTemplate(template: TemplateEntity, query: string): boolean {
   return tokens.every((token) => haystack.includes(token));
 }
 
+function formatBytes(bytes: number): string {
+  if (bytes < 1024) return `${bytes} B`;
+  const kib = bytes / 1024;
+  const value = Number.isInteger(kib) ? kib.toFixed(0) : kib.toFixed(1);
+  return `${value} KiB`;
+}
+
 export function StudioLibraryPanel({
   mode,
   query,
   selectedAssetId,
+  importDraft,
+  importError,
   onQueryChange,
   onSelectAsset,
   onClearAsset,
   onSelectTemplate,
   onImportFile,
+  onCancelImport,
+  onConfirmImport,
   onClose,
 }: StudioLibraryPanelProps) {
   const assets = searchStudioAssets(query);
@@ -86,6 +109,37 @@ export function StudioLibraryPanel({
               }}
             />
           </label>
+
+          {importError ? (
+            <p className="library-import-error" role="alert">
+              {importError}
+            </p>
+          ) : null}
+
+          {importDraft ? (
+            <section className="library-import-preview" aria-label="Preview do asset importado">
+              <div className="library-import-preview-main">
+                <span className="asset-preview import-preview">
+                  <img src={importDraft.previewSource} alt="" />
+                </span>
+                <span>
+                  <strong>{importDraft.fileName}</strong>
+                  <small>
+                    {formatBytes(importDraft.size)} ·{' '}
+                    {importDraft.sanitized ? 'SVG sanitizado' : importDraft.mediaType}
+                  </small>
+                </span>
+              </div>
+              <div className="library-import-actions">
+                <button type="button" className="button ghost" onClick={onCancelImport}>
+                  Cancelar
+                </button>
+                <button type="button" className="button" onClick={onConfirmImport}>
+                  Confirmar importação
+                </button>
+              </div>
+            </section>
+          ) : null}
 
           <div className="library-list">
             <button
