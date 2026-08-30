@@ -11,7 +11,17 @@ type PrepareImport = (
   options?: { sanitizeSvg?: (markup: string) => string },
 ) => unknown;
 
+type PrepareFile = (
+  file: File,
+  options: {
+    sanitizeSvg?: (markup: string) => string;
+    readRasterDataUrl?: (file: File) => Promise<string>;
+  },
+) => Promise<unknown>;
+
 const prepareStudioAssetImport = studioAssets.prepareStudioAssetImport as unknown as PrepareImport;
+const prepareStudioAssetFile = (studioAssets as unknown as { prepareStudioAssetFile?: PrepareFile })
+  .prepareStudioAssetFile;
 
 describe('studio asset import', () => {
   // SVG previews must be derived from sanitized markup only.
@@ -125,6 +135,29 @@ describe('studio asset import', () => {
       ok: false,
       code: 'unsafe-svg',
       message: 'O SVG não possui conteúdo seguro após sanitização.',
+    });
+  });
+
+  it('reads an SVG File and prepares only the sanitizer output for preview', async () => {
+    expect(typeof prepareStudioAssetFile).toBe('function');
+    if (!prepareStudioAssetFile) return;
+
+    const unsafe = '<svg><script>alert(1)</script><path d="M0 0h8v8z" /></svg>';
+    const clean = '<svg><path d="M0 0h8v8z" /></svg>';
+    const file = new File([unsafe], 'sect.svg', { type: 'image/svg+xml' });
+
+    const result = await prepareStudioAssetFile(file, {
+      sanitizeSvg: () => clean,
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      draft: true,
+      fileName: 'sect.svg',
+      mediaType: 'image/svg+xml',
+      size: file.size,
+      previewSource: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(clean)}`,
+      sanitized: true,
     });
   });
 });
