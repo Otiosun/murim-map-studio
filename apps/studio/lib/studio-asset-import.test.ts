@@ -104,7 +104,9 @@ describe('studio asset import', () => {
       fileName: 'sect.svg',
       mediaType: 'image/svg+xml',
       size: 96,
-      previewSource: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(clean)}`,
+      previewSource: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(
+        clean,
+      )}`,
       sanitized: true,
     });
     expect(JSON.stringify(result)).not.toContain('script');
