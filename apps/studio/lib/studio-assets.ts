@@ -248,3 +248,5 @@ export function assetManifestForId(assetId?: string): AssetManifest | undefined 
 export function searchStudioAssets(query: string): AssetManifest[] {
   return searchAssetManifests(BUILT_IN_ASSET_MANIFESTS, query);
 }
+
+export function prepareStudioAssetImport(): void {}
