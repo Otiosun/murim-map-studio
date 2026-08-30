@@ -43,6 +43,8 @@ describe('assertPlayerProjectionSafe', () => {
       items: [{ metadata: { nested: { [key]: 'must-not-leak' } } }],
     };
 
-    expect(() => assertPlayerProjectionSafe(tainted)).toThrow(`Forbidden player projection key: ${key}`);
+    expect(() => assertPlayerProjectionSafe(tainted)).toThrow(
+      `Forbidden player projection key: ${key}`,
+    );
   });
 });
