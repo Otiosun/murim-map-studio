@@ -1,0 +1,55 @@
+name: Studio bootstrap write
+
+on:
+  push:
+    branches:
+      - foundation/studio-v0
+
+permissions:
+  contents: write
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - name: Checkout
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: foundation/studio-v0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: '.nvmrc'
+          package-manager-cache: false
+
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.21.0 --activate
+
+      - name: Install and refresh lockfile
+        run: pnpm install
+
+      - name: Format Studio files
+        run: pnpm prettier --write apps/studio/app/page.tsx apps/studio/app/studio-app.tsx apps/studio/app/globals.css apps/studio/package.json pnpm-lock.yaml
+
+      - name: Validate quality
+        run: |
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm build
+
+      - name: Commit validated bootstrap
+        run: |
+          rm .github/workflows/studio-bootstrap-write.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/studio package.json pnpm-lock.yaml .github/workflows/studio-bootstrap-write.yml
+          if git diff --cached --quiet; then
+            exit 0
+          fi
+          git commit -m "studio: validate functional editor bootstrap"
+          git push origin HEAD:foundation/studio-v0
