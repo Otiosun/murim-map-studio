@@ -213,7 +213,7 @@ describe('buildPlayerMapProjection', () => {
     const playerASecret: PlayerProjectionNodeInput = {
       projectionId: 'node-secret-a',
       kind: 'monastery',
-      label: 'Hidden Monastery',
+      label: 'Unknown structure',
       knowledgeState: 'rumor',
       confidence: 0.3,
       role: 'ghost',
