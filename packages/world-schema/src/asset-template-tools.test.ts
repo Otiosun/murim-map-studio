@@ -47,6 +47,10 @@ function manifest(overrides: Partial<AssetManifest> = {}): AssetManifest {
 }
 
 describe('Foundation V0 asset and template tools', () => {
+  it('uses one canonical 2 MiB upload ceiling across Studio and storage', () => {
+    expect(MAX_ASSET_UPLOAD_BYTES).toBe(2 * 1024 * 1024);
+  });
+
   it('parses a strict AssetManifest and searches name/kind/media/tags', () => {
     const village = parseAssetManifest(manifest());
     const qi = parseAssetManifest(
