@@ -4,6 +4,7 @@ import {
   type WorldDocument,
   type WorldEntity,
 } from '@murim/domain';
+import { prepareStudioDocument, STUDIO_WORLD_ID } from './studio-assets';
 
 export const STUDIO_STORAGE_KEY = 'murim-map-studio:world-document:v1';
 
@@ -34,13 +35,12 @@ export const STUDIO_ENTITY_SCHEMA_REGISTRY: Partial<
 };
 
 export function createInitialWorldDocument(now = new Date().toISOString()): WorldDocument {
-  const worldId = 'world-murim-v0';
-  return {
+  return prepareStudioDocument({
     schemaVersion: 1,
-    rootWorldId: worldId,
+    rootWorldId: STUDIO_WORLD_ID,
     entities: [
       {
-        id: worldId,
+        id: STUDIO_WORLD_ID,
         type: 'world',
         schemaVersion: 1,
         createdAt: now,
@@ -53,7 +53,7 @@ export function createInitialWorldDocument(now = new Date().toISOString()): Worl
         },
       },
     ],
-  };
+  });
 }
 
 export function inspectorFieldsFor(entity: WorldEntity): readonly StudioInspectorField[] {
@@ -69,7 +69,8 @@ export function encodeStudioDocument(
   document: WorldDocument,
   savedAt = new Date().toISOString(),
 ): string {
-  const issues = validateWorldDocument(document);
+  const prepared = prepareStudioDocument(document);
+  const issues = validateWorldDocument(prepared);
   if (issues.length > 0) {
     throw new Error(
       `Cannot persist invalid world document: ${issues[0]?.message ?? 'unknown issue'}`,
@@ -79,7 +80,7 @@ export function encodeStudioDocument(
   const envelope: StudioStoredDocument = {
     schemaVersion: 1,
     savedAt,
-    document,
+    document: prepared,
   };
   return JSON.stringify(envelope);
 }
@@ -102,11 +103,12 @@ export function decodeStudioDocument(raw: string): DecodeStudioDocumentResult {
       return { ok: false, reason: 'Save envelope does not contain a world document.' };
     }
 
-    const document = record.document as WorldDocument;
-    if (document.schemaVersion !== 1) {
+    const rawDocument = record.document as WorldDocument;
+    if (rawDocument.schemaVersion !== 1) {
       return { ok: false, reason: 'Unsupported world document schema version.' };
     }
 
+    const document = prepareStudioDocument(rawDocument);
     const issues = validateWorldDocument(document);
     if (issues.length > 0) {
       return { ok: false, reason: issues[0]?.message ?? 'World document is invalid.' };

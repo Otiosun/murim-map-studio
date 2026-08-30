@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(18);
+select plan(19);
 
 select ok(
   not has_schema_privilege('authenticated', 'world_private', 'USAGE'),
@@ -131,6 +131,24 @@ select ok(
       and policyname = 'map_assets_read_authenticated'
   ),
   'asset storage has a policy independent from world truth'
+);
+
+select results_eq(
+  $$
+    select id, name, public, file_size_limit, allowed_mime_types
+    from storage.buckets
+    where id = 'map-assets'
+  $$,
+  $$
+    values (
+      'map-assets'::text,
+      'map-assets'::text,
+      false,
+      2097152::bigint,
+      array['image/svg+xml', 'image/webp', 'image/png']::text[]
+    )
+  $$,
+  'map asset bucket is private and constrained to the Studio import contract'
 );
 
 select results_eq(
