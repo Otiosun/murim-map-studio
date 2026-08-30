@@ -1,0 +1,58 @@
+name: Refactor shared asset limit
+
+on:
+  push:
+    branches:
+      - foundation/assets-v0
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: foundation/assets-v0
+      - name: Setup Node.js
+        uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: '.nvmrc'
+          package-manager-cache: false
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.21.0 --activate
+      - name: Use shared upload ceiling
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('apps/studio/lib/studio-assets.ts')
+          text = path.read_text()
+          marker = "} from '@murim/domain';\n"
+          shared_import = "import { MAX_ASSET_UPLOAD_BYTES } from '@murim/world-schema';\n"
+          if shared_import not in text:
+              if marker not in text:
+                  raise SystemExit('domain import marker not found')
+              text = text.replace(marker, marker + shared_import, 1)
+          text = text.replace("const MAX_IMPORTED_ASSET_BYTES = 2 * 1024 * 1024;\n", '')
+          text = text.replace('MAX_IMPORTED_ASSET_BYTES', 'MAX_ASSET_UPLOAD_BYTES')
+          path.write_text(text)
+          PY
+          pnpm install --frozen-lockfile
+          pnpm prettier --write apps/studio/lib/studio-assets.ts
+          pnpm lint
+          pnpm typecheck
+          pnpm test
+          pnpm build
+      - name: Commit validated refactor and remove helper
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git rm .github/workflows/refactor-shared-asset-limit.yml
+          git add apps/studio/lib/studio-assets.ts
+          git commit -m 'refactor: share canonical asset upload ceiling'
+          git push origin HEAD:foundation/assets-v0
