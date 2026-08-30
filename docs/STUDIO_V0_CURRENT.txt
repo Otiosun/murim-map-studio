@@ -1,0 +1,1 @@
+Current branch: foundation/studio-v0. Functional editor bootstrap validated by temporary quality workflow; permanent CI still required on the clean branch head. Gate 6 remains open until the complete browser smoke is proven.
