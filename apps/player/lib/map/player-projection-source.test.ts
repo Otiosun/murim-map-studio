@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error RED: projection source is intentionally absent before Task 5 implementation.
 import { createSupabasePlayerProjectionSource } from './player-projection-source';
 
 const playerId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
