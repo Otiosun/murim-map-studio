@@ -1,12 +1,15 @@
 import { describe, expect, it } from 'vitest';
 import * as studioAssets from './studio-assets';
 
-type PrepareImport = (input: {
-  fileName: string;
-  mediaType: string;
-  size: number;
-  content: string;
-}) => unknown;
+type PrepareImport = (
+  input: {
+    fileName: string;
+    mediaType: string;
+    size: number;
+    content: string;
+  },
+  options?: { sanitizeSvg?: (markup: string) => string },
+) => unknown;
 
 const prepareStudioAssetImport = studioAssets.prepareStudioAssetImport as unknown as PrepareImport;
 
@@ -61,6 +64,21 @@ describe('studio asset import', () => {
       size: 128,
       previewSource: 'data:image/png;base64,AA==',
       sanitized: false,
+    });
+  });
+
+  it('rejects SVG when no sanitizer is available', () => {
+    const result = prepareStudioAssetImport({
+      fileName: 'sect.svg',
+      mediaType: 'image/svg+xml',
+      size: 96,
+      content: '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h8v8z" /></svg>',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'svg-sanitizer-required',
+      message: 'SVG precisa ser sanitizado antes do preview.',
     });
   });
 });
