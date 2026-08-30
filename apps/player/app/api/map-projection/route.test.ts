@@ -56,7 +56,9 @@ describe('createMapProjectionGetHandler', () => {
 
     expect(handler.length).toBe(0);
     await Reflect.apply(handler, undefined, [
-      new Request(`http://player.local/api/map-projection?playerId=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2`),
+      new Request(
+        'http://player.local/api/map-projection?playerId=bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+      ),
     ]);
 
     expect(loadProjection).toHaveBeenCalledExactlyOnceWith(playerId);
