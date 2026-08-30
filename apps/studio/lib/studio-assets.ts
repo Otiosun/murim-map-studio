@@ -10,6 +10,7 @@ export const STUDIO_WORLD_ID = '00000000-0000-4000-8000-000000000001';
 export const LEGACY_STUDIO_WORLD_ID = 'world-murim-v0';
 
 const BUILT_IN_CREATED_AT = '2026-08-30T00:00:00.000Z';
+const MAX_IMPORTED_ASSET_BYTES = 2 * 1024 * 1024;
 
 const ASSET_IDS = {
   village: '10000000-0000-4000-8000-000000000001',
@@ -262,6 +263,14 @@ export function prepareStudioAssetImport(input: StudioAssetImportInput) {
       ok: false as const,
       code: 'unsupported-media-type' as const,
       message: 'Use SVG, WebP ou PNG.',
+    };
+  }
+
+  if (input.size > MAX_IMPORTED_ASSET_BYTES) {
+    return {
+      ok: false as const,
+      code: 'file-too-large' as const,
+      message: 'O asset deve ter no máximo 2 MiB.',
     };
   }
 
