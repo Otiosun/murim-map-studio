@@ -37,9 +37,7 @@ describe('player OTP auth helpers', () => {
   });
 
   it('uses the same public response when the provider reports an account-related error', async () => {
-    const signInWithOtp = vi
-      .fn()
-      .mockResolvedValue({ error: { message: 'Signups not allowed' } });
+    const signInWithOtp = vi.fn().mockResolvedValue({ error: { message: 'Signups not allowed' } });
     const client = { auth: { signInWithOtp, verifyOtp: vi.fn() } };
 
     const result = await requestPlayerOtp(client, 'player@example.com');
