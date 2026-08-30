@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(19);
+select plan(20);
 
 select ok(
   not has_schema_privilege('authenticated', 'world_private', 'USAGE'),
@@ -59,6 +59,31 @@ select hasnt_column(
   'map_nodes',
   'secret_payload',
   'player projection exposes no secret payload column'
+);
+
+select results_eq(
+  $$
+    select enum_value
+    from (
+      select enumlabel::text as enum_value, enumsortorder
+      from pg_enum
+      join pg_type on pg_type.oid = pg_enum.enumtypid
+      join pg_namespace on pg_namespace.oid = pg_type.typnamespace
+      where pg_namespace.nspname = 'world_private'
+        and pg_type.typname = 'knowledge_state'
+    ) values_with_order
+    order by enumsortorder
+  $$,
+  $$
+    values
+      ('rumor'::text),
+      ('indication'::text),
+      ('localized'::text),
+      ('confirmed'::text),
+      ('investigated'::text),
+      ('understood'::text)
+  $$,
+  'database knowledge states match the canonical domain grammar'
 );
 
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
