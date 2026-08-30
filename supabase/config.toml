@@ -34,7 +34,7 @@ jwt_expiry = 3600
 enable_signup = false
 
 [auth.email]
-enable_signup = false
+enable_signup = true
 max_frequency = "60s"
 otp_length = 6
 otp_expiry = 600
