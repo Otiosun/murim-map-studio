@@ -10,31 +10,38 @@ interface StudioAssetVisualProps {
   highlighted?: boolean;
 }
 
+interface LoadedAssetImage {
+  source: string;
+  image: HTMLImageElement;
+}
+
 export function StudioAssetVisual({ assetId, scale, highlighted = false }: StudioAssetVisualProps) {
   const manifest = assetManifestForId(assetId);
-  const [image, setImage] = useState<HTMLImageElement | null>(null);
+  const source = manifest?.source;
+  const [loaded, setLoaded] = useState<LoadedAssetImage | null>(null);
 
   useEffect(() => {
-    if (!manifest) {
-      setImage(null);
-      return;
-    }
+    if (!source) return;
 
     let active = true;
     const next = new window.Image();
     next.decoding = 'async';
     next.onload = () => {
-      if (active) setImage(next);
+      if (active) setLoaded({ source, image: next });
     };
     next.onerror = () => {
-      if (active) setImage(null);
+      if (active) {
+        setLoaded((current) => (current?.source === source ? null : current));
+      }
     };
-    next.src = manifest.source;
+    next.src = source;
 
     return () => {
       active = false;
     };
-  }, [manifest]);
+  }, [source]);
+
+  const image = source && loaded?.source === source ? loaded.image : null;
 
   if (!manifest || !image) {
     return (
