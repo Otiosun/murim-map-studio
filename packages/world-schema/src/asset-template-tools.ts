@@ -76,7 +76,9 @@ export function validateAssetUploadCandidate(
 
   if (mediaType) {
     const normalizedName = candidate.fileName.trim().toLowerCase();
-    if (!EXTENSION_BY_MEDIA_TYPE[mediaType].some((extension) => normalizedName.endsWith(extension))) {
+    if (
+      !EXTENSION_BY_MEDIA_TYPE[mediaType].some((extension) => normalizedName.endsWith(extension))
+    ) {
       issues.push(`File extension does not match declared media type ${mediaType}.`);
     }
   }
