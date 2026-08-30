@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-// @ts-expect-error RED: OTP helpers are intentionally absent before Task 4 implementation.
 import { normalizeLoginEmail, parseEmailOtp, requestPlayerOtp, verifyPlayerOtp } from './otp';
 
 describe('player OTP auth helpers', () => {
