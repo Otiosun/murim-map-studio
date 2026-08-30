@@ -95,10 +95,34 @@ jobs:
 
       - name: Verify generated database types are current
         run: |
-          pnpm db:types > supabase/database.types.generated.ts
-          pnpm prettier --write supabase/database.types.generated.ts
-          diff -u supabase/database.types.ts supabase/database.types.generated.ts
-          rm supabase/database.types.generated.ts
+          set -euo pipefail
+          generated='supabase/database.types.generated.ts'
+          rm -f "$generated"
+
+          success=false
+          for attempt in 1 2 3 4; do
+            echo "Generating database types (attempt ${attempt}/4)..."
+            if pnpm db:types > "$generated"; then
+              success=true
+              break
+            fi
+
+            rm -f "$generated"
+            if [ "$attempt" -lt 4 ]; then
+              delay=$((attempt * 8))
+              echo "Transient database type generation failure; retrying in ${delay}s..."
+              sleep "$delay"
+            fi
+          done
+
+          if [ "$success" != true ]; then
+            echo 'Database type generation failed after 4 attempts.' >&2
+            exit 1
+          fi
+
+          pnpm prettier --write "$generated"
+          diff -u supabase/database.types.ts "$generated"
+          rm "$generated"
 
       - name: Stop local Supabase
         if: always()
