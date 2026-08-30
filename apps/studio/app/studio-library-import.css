@@ -1,0 +1,120 @@
+.library-import {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 10px 10px 0;
+  padding: 10px 11px;
+  border: 1px dashed #3b403d;
+  border-radius: 8px;
+  background: #0d0f0e;
+  color: #c4cbc6;
+  cursor: pointer;
+}
+
+.library-import:hover {
+  border-color: #665a36;
+  background: #15150f;
+}
+
+.library-import strong,
+.library-import small {
+  display: block;
+}
+
+.library-import strong {
+  font-size: 0.78rem;
+}
+
+.library-import small {
+  margin-top: 3px;
+  color: #737c77;
+  font-size: 0.66rem;
+}
+
+.library-import input {
+  width: 98px;
+  color: #88908b;
+  font-size: 0.66rem;
+}
+
+.library-import input::file-selector-button {
+  margin-right: 8px;
+  padding: 6px 8px;
+  border: 1px solid #343936;
+  border-radius: 6px;
+  background: #171a18;
+  color: #c7cec9;
+  cursor: pointer;
+}
+
+.library-import-error {
+  margin: 8px 10px 0;
+  padding: 8px 10px;
+  border: 1px solid #563936;
+  border-radius: 7px;
+  background: #241817;
+  color: #ddb1ac;
+  font-size: 0.7rem;
+  line-height: 1.4;
+}
+
+.library-import-preview {
+  display: grid;
+  gap: 10px;
+  margin: 8px 10px 0;
+  padding: 10px;
+  border: 1px solid #665a36;
+  border-radius: 8px;
+  background: #17150f;
+}
+
+.library-import-preview-main {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  align-items: center;
+  gap: 10px;
+}
+
+.library-import-preview-main strong,
+.library-import-preview-main small {
+  display: block;
+}
+
+.library-import-preview-main strong {
+  overflow: hidden;
+  color: #e5e0d2;
+  font-size: 0.78rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.library-import-preview-main small {
+  margin-top: 4px;
+  color: #8b928e;
+  font-size: 0.66rem;
+}
+
+.asset-preview.import-preview {
+  width: 48px;
+  height: 48px;
+  background: #0a0b0a;
+}
+
+.asset-preview.import-preview img {
+  width: 38px;
+  height: 38px;
+  object-fit: contain;
+}
+
+.library-import-actions {
+  display: grid;
+  grid-template-columns: 0.8fr 1.2fr;
+  gap: 7px;
+}
+
+.library-import-actions .button {
+  min-width: 0;
+  padding-inline: 8px;
+  font-size: 0.7rem;
+}
