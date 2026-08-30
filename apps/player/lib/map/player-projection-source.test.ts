@@ -131,7 +131,9 @@ describe('createSupabasePlayerProjectionSource', () => {
 
   it('rejects non-finite Point geometry', async () => {
     const { source } = createSource({
-      map_nodes: [nodeRow({ geom: { type: 'Point', coordinates: [100, Number.POSITIVE_INFINITY] } })],
+      map_nodes: [
+        nodeRow({ geom: { type: 'Point', coordinates: [100, Number.POSITIVE_INFINITY] } }),
+      ],
       map_routes: [],
     });
 
