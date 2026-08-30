@@ -41,6 +41,12 @@ importers:
 
   apps/player:
     dependencies:
+      '@murim/map-renderer':
+        specifier: workspace:*
+        version: link:../../packages/map-renderer
+      '@murim/world-schema':
+        specifier: workspace:*
+        version: link:../../packages/world-schema
       '@supabase/ssr':
         specifier: 0.12.5
         version: 0.12.5(@supabase/supabase-js@2.112.4)
