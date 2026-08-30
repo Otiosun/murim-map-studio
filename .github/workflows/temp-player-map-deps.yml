@@ -1,0 +1,40 @@
+name: Temporary player map dependencies
+
+on:
+  push:
+    branches:
+      - foundation/player-auth-v0
+    paths:
+      - .github/workflows/temp-player-map-deps.yml
+
+permissions:
+  contents: write
+
+jobs:
+  update:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: foundation/player-auth-v0
+          fetch-depth: 1
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+          check-latest: false
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.21.0 --activate
+      - name: Install current lockfile
+        run: pnpm install --frozen-lockfile
+      - name: Add canonical workspace dependencies and self-delete
+        run: |
+          pnpm --filter @murim/player add '@murim/map-renderer@workspace:*' '@murim/world-schema@workspace:*'
+          rm .github/workflows/temp-player-map-deps.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/player/package.json pnpm-lock.yaml .github/workflows/temp-player-map-deps.yml
+          git commit -m "build: add player projection workspace dependencies"
+          git push origin HEAD:foundation/player-auth-v0
