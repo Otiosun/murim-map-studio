@@ -1,0 +1,38 @@
+name: Format asset import test
+
+on:
+  push:
+    branches:
+      - foundation/assets-v0
+
+permissions:
+  contents: write
+
+jobs:
+  format:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          ref: foundation/assets-v0
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.21.0 --activate
+      - name: Install
+        run: pnpm install --frozen-lockfile
+      - name: Format exact test
+        run: pnpm prettier --write apps/studio/lib/studio-asset-import.test.ts
+      - name: Commit formatter output and remove helper
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git rm .github/workflows/format-asset-import-test.yml
+          git add apps/studio/lib/studio-asset-import.test.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "chore: format asset import test with repo Prettier"
+          git push origin HEAD:foundation/assets-v0
