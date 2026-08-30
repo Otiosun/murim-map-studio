@@ -4,14 +4,21 @@ import { describe, expect, it } from 'vitest';
 const config = readFileSync('supabase/config.toml', 'utf8');
 const template = readFileSync('supabase/templates/magic-link.html', 'utf8');
 
+function section(name: string): string {
+  const match = config.match(new RegExp(`\\[${name.replace('.', '\\.') }\\]([\\s\\S]*?)(?=\\n\\[|$)`));
+  return match?.[1] ?? '';
+}
+
 describe('player auth local configuration', () => {
-  it('is invite-only six-digit OTP with 600-second expiry and 60-second resend interval', () => {
-    expect(config).toContain('site_url = "http://127.0.0.1:3001"');
-    expect(config).toContain('[auth.email]');
-    expect(config).toContain('enable_signup = false');
-    expect(config).toContain('max_frequency = "60s"');
-    expect(config).toContain('otp_length = 6');
-    expect(config).toContain('otp_expiry = 600');
+  it('is invite-only while keeping the email provider enabled for existing players', () => {
+    const auth = section('auth');
+    const email = section('auth.email');
+
+    expect(auth).toContain('enable_signup = false');
+    expect(email).toContain('enable_signup = true');
+    expect(email).toContain('max_frequency = "60s"');
+    expect(email).toContain('otp_length = 6');
+    expect(email).toContain('otp_expiry = 600');
     expect(template).toContain('{{ .Token }}');
     expect(template).not.toContain('{{ .ConfirmationURL }}');
   });
