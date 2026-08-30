@@ -302,6 +302,14 @@ export function prepareStudioAssetImport(
   }
 
   const sanitizedMarkup = options.sanitizeSvg(input.content);
+  if (!sanitizedMarkup.trim()) {
+    return {
+      ok: false as const,
+      code: 'unsafe-svg' as const,
+      message: 'O SVG não possui conteúdo seguro após sanitização.',
+    };
+  }
+
   return {
     ok: true as const,
     draft: true as const,
