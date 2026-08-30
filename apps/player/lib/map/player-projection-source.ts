@@ -4,6 +4,7 @@ import {
   type PlayerProjectionNodeInput,
   type PlayerProjectionRouteInput,
 } from '@murim/map-renderer';
+import { parseMapProjection } from '@murim/world-schema';
 
 const PLAYER_MAP_KEY = 'player-map';
 const KNOWLEDGE_STATES = [
@@ -240,12 +241,14 @@ export function createSupabasePlayerProjectionSource(
         playerId,
       );
 
-      return buildPlayerMapProjection({
-        mapKey: PLAYER_MAP_KEY,
-        generatedAt: now(),
-        nodes: nodeRows.map((row) => parseNode(row, playerId)),
-        routes: routeRows.map((row) => parseRoute(row, playerId)),
-      });
+      return parseMapProjection(
+        buildPlayerMapProjection({
+          mapKey: PLAYER_MAP_KEY,
+          generatedAt: now(),
+          nodes: nodeRows.map((row) => parseNode(row, playerId)),
+          routes: routeRows.map((row) => parseRoute(row, playerId)),
+        }),
+      );
     },
   };
 }
