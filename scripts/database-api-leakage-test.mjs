@@ -197,6 +197,14 @@ assert(
   'player B known projection unexpectedly retains an uncertainty radius',
 );
 
+const playerBJson = JSON.stringify(playerBRows);
+assert(playerAJson !== playerBJson, 'player A and player B unexpectedly received identical maps');
+assert(playerBJson.includes(SECRET_NAME), 'player B map does not contain the authorized secret name');
+assert(
+  !playerBJson.includes(PLAYER_A_SECRET_PROJECTION_ID),
+  'player B received player A projection-local ID',
+);
+
 console.log(
-  'PostgREST leakage smoke passed: private truth and trusted mutations are not reachable by player A.',
+  'PostgREST leakage smoke passed: player A receives only the safe ghost while player B receives the authorized investigated location.',
 );
