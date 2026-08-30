@@ -1,0 +1,39 @@
+name: Install Studio DOMPurify
+
+on:
+  push:
+    branches:
+      - foundation/assets-v0
+    paths:
+      - .github/workflows/add-dompurify.yml
+
+permissions:
+  contents: write
+
+jobs:
+  install:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          persist-credentials: true
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38
+        with:
+          node-version-file: .nvmrc
+          package-manager-cache: false
+      - name: Enable pinned pnpm
+        run: |
+          corepack enable
+          corepack prepare pnpm@11.21.0 --activate
+      - name: Install current workspace
+        run: pnpm install --frozen-lockfile
+      - name: Add pinned DOMPurify to Studio
+        run: pnpm --filter @murim/studio add dompurify@3.4.14 --save-exact
+      - name: Commit dependency and remove helper
+        run: |
+          rm .github/workflows/add-dompurify.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add apps/studio/package.json pnpm-lock.yaml .github/workflows/add-dompurify.yml
+          git commit -m "chore: add pinned DOMPurify to Studio"
+          git push
