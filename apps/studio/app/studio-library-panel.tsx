@@ -117,7 +117,9 @@ export function StudioLibraryPanel({
                 </span>
               </button>
             ))}
-            {assets.length === 0 ? <p className="library-empty">Nenhum símbolo encontrado.</p> : null}
+            {assets.length === 0 ? (
+              <p className="library-empty">Nenhum símbolo encontrado.</p>
+            ) : null}
           </div>
         </>
       ) : (
