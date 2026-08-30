@@ -8,7 +8,7 @@ export type StudioLibraryMode = 'assets' | 'templates';
 interface StudioLibraryPanelProps {
   mode: StudioLibraryMode;
   query: string;
-  selectedAssetId?: string;
+  selectedAssetId?: string | undefined;
   onQueryChange: (query: string) => void;
   onSelectAsset: (manifest: AssetManifest) => void;
   onClearAsset: () => void;
