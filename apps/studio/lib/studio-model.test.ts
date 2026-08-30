@@ -63,11 +63,10 @@ describe('Studio V0 model', () => {
     let document = createInitialWorldDocument(WORLD_NOW);
     let history = createCommandHistory();
 
-    ({ document, history } = run(
-      document,
-      history,
-      { kind: 'CreateEntity', entity: location('location-a', 'Local 1', 100, 120) },
-    ));
+    ({ document, history } = run(document, history, {
+      kind: 'CreateEntity',
+      entity: location('location-a', 'Local 1', 100, 120),
+    }));
     ({ document, history } = run(document, history, {
       kind: 'MoveEntity',
       entityId: 'location-a',
@@ -79,11 +78,10 @@ describe('Studio V0 model', () => {
       property: 'name',
       mutation: { operation: 'set', value: 'Vila Qinghe' },
     }));
-    ({ document, history } = run(
-      document,
-      history,
-      { kind: 'CreateEntity', entity: location('location-b', 'Passagem Norte', 520, 280) },
-    ));
+    ({ document, history } = run(document, history, {
+      kind: 'CreateEntity',
+      entity: location('location-b', 'Passagem Norte', 520, 280),
+    }));
     ({ document, history } = run(document, history, {
       kind: 'ConnectRoute',
       routeId: 'route-a-b',

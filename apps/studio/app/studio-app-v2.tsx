@@ -117,7 +117,10 @@ export function StudioAppV2() {
   const pinchRef = useRef<PinchState | null>(null);
 
   const locations = useMemo(
-    () => worldDocument.entities.filter((entity): entity is LocationEntity => entity.type === 'location'),
+    () =>
+      worldDocument.entities.filter(
+        (entity): entity is LocationEntity => entity.type === 'location',
+      ),
     [worldDocument],
   );
   const routes = useMemo(
@@ -507,11 +510,21 @@ export function StudioAppV2() {
             Rota
           </button>
           <div className="tool-divider" />
-          <button type="button" className="tool" disabled={history.past.length === 0} onClick={undo}>
+          <button
+            type="button"
+            className="tool"
+            disabled={history.past.length === 0}
+            onClick={undo}
+          >
             <span className="tool-key">↶</span>
             Undo
           </button>
-          <button type="button" className="tool" disabled={history.future.length === 0} onClick={redo}>
+          <button
+            type="button"
+            className="tool"
+            disabled={history.future.length === 0}
+            onClick={redo}
+          >
             <span className="tool-key">↷</span>
             Redo
           </button>
@@ -551,9 +564,7 @@ export function StudioAppV2() {
                 if (!pointer) return;
 
                 const oldScale = view.scale;
-                const nextScale = clampScale(
-                  oldScale * (event.evt.deltaY > 0 ? 1 / 1.08 : 1.08),
-                );
+                const nextScale = clampScale(oldScale * (event.evt.deltaY > 0 ? 1 / 1.08 : 1.08));
                 const worldPoint = {
                   x: (pointer.x - view.x) / oldScale,
                   y: (pointer.y - view.y) / oldScale,
@@ -595,16 +606,8 @@ export function StudioAppV2() {
                     strokeWidth={1 / view.scale}
                   />
                 ))}
-                <Line
-                  points={[-5000, 0, 5000, 0]}
-                  stroke="#303532"
-                  strokeWidth={1 / view.scale}
-                />
-                <Line
-                  points={[0, -5000, 0, 5000]}
-                  stroke="#303532"
-                  strokeWidth={1 / view.scale}
-                />
+                <Line points={[-5000, 0, 5000, 0]} stroke="#303532" strokeWidth={1 / view.scale} />
+                <Line points={[0, -5000, 0, 5000]} stroke="#303532" strokeWidth={1 / view.scale} />
               </Layer>
 
               <Layer>

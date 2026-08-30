@@ -71,7 +71,9 @@ export function encodeStudioDocument(
 ): string {
   const issues = validateWorldDocument(document);
   if (issues.length > 0) {
-    throw new Error(`Cannot persist invalid world document: ${issues[0]?.message ?? 'unknown issue'}`);
+    throw new Error(
+      `Cannot persist invalid world document: ${issues[0]?.message ?? 'unknown issue'}`,
+    );
   }
 
   const envelope: StudioStoredDocument = {
@@ -83,8 +85,7 @@ export function encodeStudioDocument(
 }
 
 export type DecodeStudioDocumentResult =
-  | { ok: true; envelope: StudioStoredDocument }
-  | { ok: false; reason: string };
+  { ok: true; envelope: StudioStoredDocument } | { ok: false; reason: string };
 
 export function decodeStudioDocument(raw: string): DecodeStudioDocumentResult {
   try {
