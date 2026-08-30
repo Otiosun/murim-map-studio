@@ -1,11 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 // @ts-expect-error RED: OTP helpers are intentionally absent before Task 4 implementation.
-import {
-  normalizeLoginEmail,
-  parseEmailOtp,
-  requestPlayerOtp,
-  verifyPlayerOtp,
-} from './otp';
+import { normalizeLoginEmail, parseEmailOtp, requestPlayerOtp, verifyPlayerOtp } from './otp';
 
 describe('player OTP auth helpers', () => {
   it('normalizes valid email and rejects invalid input', () => {
@@ -42,7 +37,9 @@ describe('player OTP auth helpers', () => {
   });
 
   it('uses the same public response when the provider reports an account-related error', async () => {
-    const signInWithOtp = vi.fn().mockResolvedValue({ error: { message: 'Signups not allowed' } });
+    const signInWithOtp = vi
+      .fn()
+      .mockResolvedValue({ error: { message: 'Signups not allowed' } });
     const client = { auth: { signInWithOtp, verifyOtp: vi.fn() } };
 
     const result = await requestPlayerOtp(client, 'player@example.com');
