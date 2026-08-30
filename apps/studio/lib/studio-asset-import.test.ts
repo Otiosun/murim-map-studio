@@ -109,4 +109,22 @@ describe('studio asset import', () => {
     });
     expect(JSON.stringify(result)).not.toContain('script');
   });
+
+  it('rejects SVG when sanitization removes all meaningful markup', () => {
+    const result = prepareStudioAssetImport(
+      {
+        fileName: 'unsafe.svg',
+        mediaType: 'image/svg+xml',
+        size: 64,
+        content: '<svg><script>alert(1)</script></svg>',
+      },
+      { sanitizeSvg: () => '   ' },
+    );
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'unsafe-svg',
+      message: 'O SVG não possui conteúdo seguro após sanitização.',
+    });
+  });
 });
