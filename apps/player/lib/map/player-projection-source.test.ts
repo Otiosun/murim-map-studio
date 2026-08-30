@@ -71,10 +71,7 @@ function createPlayerApiClient(rows: Record<TableName, unknown[]>) {
   return { client, calls };
 }
 
-function createSource(
-  rows: Record<TableName, unknown[]>,
-  now: () => string = () => generatedAt,
-) {
+function createSource(rows: Record<TableName, unknown[]>, now: () => string = () => generatedAt) {
   const fake = createPlayerApiClient(rows);
   return {
     ...fake,
