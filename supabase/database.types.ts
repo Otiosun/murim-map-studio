@@ -39,6 +39,7 @@ export type Database = {
     Tables: {
       map_nodes: {
         Row: {
+          approximate_radius: number | null;
           confidence: number;
           details: Json;
           geom: unknown;
@@ -47,9 +48,11 @@ export type Database = {
           label: string;
           owner_user_id: string;
           projection_id: string;
+          role: string;
           updated_at: string;
         };
         Insert: {
+          approximate_radius?: number | null;
           confidence: number;
           details?: Json;
           geom?: unknown;
@@ -58,9 +61,11 @@ export type Database = {
           label: string;
           owner_user_id: string;
           projection_id: string;
+          role?: string;
           updated_at?: string;
         };
         Update: {
+          approximate_radius?: number | null;
           confidence?: number;
           details?: Json;
           geom?: unknown;
@@ -69,6 +74,7 @@ export type Database = {
           label?: string;
           owner_user_id?: string;
           projection_id?: string;
+          role?: string;
           updated_at?: string;
         };
         Relationships: [];
@@ -295,6 +301,7 @@ export type Database = {
       player_location_knowledge: {
         Row: {
           approximate_geom: unknown;
+          approximate_radius: number | null;
           confidence: number;
           learned_at: string;
           origin_kind: string;
@@ -307,6 +314,7 @@ export type Database = {
         };
         Insert: {
           approximate_geom?: unknown;
+          approximate_radius?: number | null;
           confidence: number;
           learned_at: string;
           origin_kind: string;
@@ -319,6 +327,7 @@ export type Database = {
         };
         Update: {
           approximate_geom?: unknown;
+          approximate_radius?: number | null;
           confidence?: number;
           learned_at?: string;
           origin_kind?: string;
