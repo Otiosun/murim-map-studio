@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-// @ts-expect-error RED: server client module is intentionally absent until Task 2 implementation.
 import { createPlayerSupabaseServerClientFactory } from './server';
 
 describe('createPlayerSupabaseServerClientFactory', () => {

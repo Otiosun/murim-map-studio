@@ -6,7 +6,6 @@ vi.mock('./lib/supabase/proxy', () => ({
   updatePlayerSession: vi.fn(async () => new Response(null, { status: 204 })),
 }));
 
-// @ts-expect-error RED: root proxy entrypoint is intentionally absent until Task 2 implementation.
 import { config, proxy } from './proxy';
 
 describe('player root proxy', () => {
