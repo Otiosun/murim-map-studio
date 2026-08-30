@@ -80,9 +80,7 @@ export function buildPlayerMapProjection(input: BuildPlayerMapProjectionInput): 
   const nodeIds = new Set(input.nodes.map((node) => node.projectionId));
   const nodes = input.nodes.map(buildNode);
   const routes = input.routes
-    .filter(
-      (route) => nodeIds.has(route.fromProjectionId) && nodeIds.has(route.toProjectionId),
-    )
+    .filter((route) => nodeIds.has(route.fromProjectionId) && nodeIds.has(route.toProjectionId))
     .map(buildRoute);
 
   return {
