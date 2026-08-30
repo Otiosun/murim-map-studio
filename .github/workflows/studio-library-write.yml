@@ -42,8 +42,7 @@ jobs:
             packages/domain/src/index.ts \
             packages/world-schema/src/asset-template-tools.ts \
             packages/world-schema/src/asset-template-tools.test.ts \
-            packages/world-schema/src/index.ts \
-            apps/studio/public/assets/murim/*.svg
+            packages/world-schema/src/index.ts
       - name: Validate full repository quality
         run: |
           pnpm install --frozen-lockfile
