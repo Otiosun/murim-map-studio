@@ -11,7 +11,11 @@ interface PlayerServerCookieStore {
 interface PlayerServerClientFactoryDependencies<TClient> {
   env: PlayerSupabaseEnvSource;
   getCookieStore(): Promise<PlayerServerCookieStore>;
-  createClient(url: string, publishableKey: string, options: { cookies: CookieMethodsServer }): TClient;
+  createClient(
+    url: string,
+    publishableKey: string,
+    options: { cookies: CookieMethodsServer },
+  ): TClient;
 }
 
 export function createPlayerSupabaseServerClientFactory<TClient>(
