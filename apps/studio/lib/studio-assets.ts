@@ -261,6 +261,10 @@ export interface StudioAssetImportOptions {
   sanitizeSvg?: (markup: string) => string;
 }
 
+export interface StudioAssetFileOptions extends StudioAssetImportOptions {
+  readRasterDataUrl?: (file: File) => Promise<string>;
+}
+
 export function prepareStudioAssetImport(
   input: StudioAssetImportInput,
   options: StudioAssetImportOptions = {},
@@ -319,4 +323,36 @@ export function prepareStudioAssetImport(
     previewSource: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(sanitizedMarkup)}`,
     sanitized: true as const,
   };
+}
+
+export async function prepareStudioAssetFile(file: File, options: StudioAssetFileOptions = {}) {
+  const input = {
+    fileName: file.name,
+    mediaType: file.type,
+    size: file.size,
+  };
+
+  if (
+    !['image/svg+xml', 'image/webp', 'image/png'].includes(file.type) ||
+    file.size > MAX_IMPORTED_ASSET_BYTES
+  ) {
+    return prepareStudioAssetImport({ ...input, content: '' }, options);
+  }
+
+  if (file.type === 'image/svg+xml') {
+    return prepareStudioAssetImport({ ...input, content: await file.text() }, options);
+  }
+
+  if (!options.readRasterDataUrl) {
+    return {
+      ok: false as const,
+      code: 'raster-reader-required' as const,
+      message: 'PNG e WebP precisam ser lidos como Data URL antes do preview.',
+    };
+  }
+
+  return prepareStudioAssetImport(
+    { ...input, content: await options.readRasterDataUrl(file) },
+    options,
+  );
 }
