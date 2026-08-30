@@ -25,12 +25,14 @@
 ### Task 1: Unificar a gramática de conhecimento no banco
 
 **Files:**
+
 - Create: `supabase/migrations/20260830034000_player_knowledge_states_v0.sql`
 - Modify: `supabase/seed.sql`
 - Modify: `supabase/tests/database/rls.test.sql`
 - Generated: `supabase/database.types.ts`
 
 **Interfaces:**
+
 - Consumes: `KNOWLEDGE_STATES` de `@murim/domain` como semântica canônica.
 - Produces: banco com `rumor | indication | localized | confirmed | investigated | understood` em `world_private.player_location_knowledge.state`, `player_api.map_nodes.knowledge_state` e `player_api.map_routes.knowledge_state`.
 
@@ -85,6 +87,7 @@ git commit -m "feat: align player knowledge states"
 ### Task 2: Representar ghost nodes com incerteza espacial segura
 
 **Files:**
+
 - Create: `supabase/migrations/20260830035000_player_ghost_projection_v0.sql`
 - Modify: `supabase/seed.sql`
 - Modify: `supabase/tests/database/rls.test.sql`
@@ -92,6 +95,7 @@ git commit -m "feat: align player knowledge states"
 - Generated: `supabase/database.types.ts`
 
 **Interfaces:**
+
 - Consumes: estados canônicos da Task 1.
 - Produces: `player_api.map_nodes` com `role` (`known|ghost`) e `approximate_radius`; `world_private.player_location_knowledge` com `approximate_radius` nullable/positivo.
 
@@ -156,11 +160,13 @@ git commit -m "feat: add safe ghost projection uncertainty"
 ### Task 3: Criar builder puro de `MapProjection`
 
 **Files:**
+
 - Create: `packages/map-renderer/src/player-projection.ts`
 - Create: `packages/map-renderer/src/player-projection.test.ts`
 - Modify: `packages/map-renderer/src/index.ts`
 
 **Interfaces:**
+
 - Consumes:
 
 ```ts
@@ -193,12 +199,13 @@ export function buildPlayerMapProjection(input: {
   generatedAt: string;
   nodes: readonly PlayerProjectionNodeInput[];
   routes: readonly PlayerProjectionRouteInput[];
-}): MapProjection
+}): MapProjection;
 ```
 
 - [ ] **Step 1: Escrever RED para known + ghost**
 
 Teste deve exigir:
+
 - node known com projection-local ID;
 - ghost com `role: 'ghost'` e `approximateLocation.center/radius`;
 - `symbolKey` derivado de `kind` sem acesso a asset/world entity;
@@ -217,6 +224,7 @@ Expected: FAIL porque builder ainda não existe.
 - [ ] **Step 4: Implementar builder mínimo**
 
 Regras:
+
 - nunca aceitar world/canonical IDs na interface;
 - filtrar rota com endpoints ausentes;
 - `known`: sem `approximateLocation`;
@@ -242,7 +250,7 @@ Teste deve falhar se qualquer chave da saída normalizada for uma das seguintes:
   'world_id',
   'secretPayload',
   'secret_payload',
-]
+];
 ```
 
 - [ ] **Step 7: Rodar qualidade completa**
@@ -263,17 +271,20 @@ git commit -m "feat: build safe player map projections"
 ### Task 4: Provar duas perspectivas sem vazamento e fechar 8A
 
 **Files:**
+
 - Modify: `packages/map-renderer/src/player-projection.test.ts`
 - Modify: `scripts/database-api-leakage-test.mjs`
 - Create: `docs/PLAYER_KNOWLEDGE_V0_STATUS.md`
 
 **Interfaces:**
+
 - Consumes: banco player-safe das Tasks 1–2 e builder da Task 3.
 - Produces: evidência do Gate 8A e checkpoint para 8B.
 
 - [ ] **Step 1: Escrever RED de duas perspectivas**
 
 Usar a mesma situação conceitual:
+
 - Player A: vila confirmada + segredo como rumor ghost aproximado;
 - Player B: vila confirmada + segredo investigado known.
 
@@ -296,6 +307,7 @@ Expected: tudo verde.
 - [ ] **Step 4: Registrar checkpoint 8A**
 
 `docs/PLAYER_KNOWLEDGE_V0_STATUS.md` deve registrar:
+
 - gramática única;
 - ghost uncertainty server-safe;
 - projection-local IDs;
