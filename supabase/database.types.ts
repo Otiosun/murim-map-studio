@@ -595,7 +595,8 @@ export type Database = {
       [_ in never]: never;
     };
     Enums: {
-      knowledge_state: 'rumor' | 'clue' | 'located' | 'confirmed' | 'investigated' | 'understood';
+      knowledge_state:
+        'rumor' | 'indication' | 'localized' | 'confirmed' | 'investigated' | 'understood';
     };
     CompositeTypes: {
       [_ in never]: never;
@@ -728,7 +729,14 @@ export const Constants = {
   },
   world_private: {
     Enums: {
-      knowledge_state: ['rumor', 'clue', 'located', 'confirmed', 'investigated', 'understood'],
+      knowledge_state: [
+        'rumor',
+        'indication',
+        'localized',
+        'confirmed',
+        'investigated',
+        'understood',
+      ],
     },
   },
 } as const;
