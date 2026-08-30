@@ -14,6 +14,7 @@ type PrepareImport = (
 const prepareStudioAssetImport = studioAssets.prepareStudioAssetImport as unknown as PrepareImport;
 
 describe('studio asset import', () => {
+  // SVG previews must be derived from sanitized markup only.
   it('exposes a preparation function before imported assets can enter the Studio', () => {
     expect('prepareStudioAssetImport' in studioAssets).toBe(true);
   });
