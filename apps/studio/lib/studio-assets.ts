@@ -265,6 +265,21 @@ export interface StudioAssetFileOptions extends StudioAssetImportOptions {
   readRasterDataUrl?: (file: File) => Promise<string>;
 }
 
+export interface StudioSvgPurifier {
+  sanitize: (
+    markup: string,
+    config: { USE_PROFILES: { svg: boolean; svgFilters: boolean } },
+  ) => unknown;
+}
+
+export function sanitizeStudioSvg(markup: string, purifier: StudioSvgPurifier): string {
+  return String(
+    purifier.sanitize(markup, {
+      USE_PROFILES: { svg: true, svgFilters: true },
+    }),
+  );
+}
+
 export function prepareStudioAssetImport(
   input: StudioAssetImportInput,
   options: StudioAssetImportOptions = {},
