@@ -5,12 +5,6 @@ values
   ('cccccccc-cccc-4ccc-8ccc-ccccccccccc3', 'narrator'),
   ('dddddddd-dddd-4ddd-8ddd-ddddddddddd4', 'admin');
 
-insert into storage.buckets (id, name, public, file_size_limit)
-values ('map-assets', 'map-assets', false, 26214400)
-on conflict (id) do update
-set public = excluded.public,
-    file_size_limit = excluded.file_size_limit;
-
 insert into world_private.worlds (id, slug, name, schema_version)
 values (
   '10000000-0000-4000-8000-000000000001',
