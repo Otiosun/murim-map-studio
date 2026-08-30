@@ -5,12 +5,12 @@ import {
   type TemplateEntity,
   type WorldDocument,
 } from '@murim/domain';
+import { MAX_ASSET_UPLOAD_BYTES } from '@murim/world-schema';
 
 export const STUDIO_WORLD_ID = '00000000-0000-4000-8000-000000000001';
 export const LEGACY_STUDIO_WORLD_ID = 'world-murim-v0';
 
 const BUILT_IN_CREATED_AT = '2026-08-30T00:00:00.000Z';
-const MAX_IMPORTED_ASSET_BYTES = 2 * 1024 * 1024;
 
 const ASSET_IDS = {
   village: '10000000-0000-4000-8000-000000000001',
@@ -292,7 +292,7 @@ export function prepareStudioAssetImport(
     };
   }
 
-  if (input.size > MAX_IMPORTED_ASSET_BYTES) {
+  if (input.size > MAX_ASSET_UPLOAD_BYTES) {
     return {
       ok: false as const,
       code: 'file-too-large' as const,
@@ -349,7 +349,7 @@ export async function prepareStudioAssetFile(file: File, options: StudioAssetFil
 
   if (
     !['image/svg+xml', 'image/webp', 'image/png'].includes(file.type) ||
-    file.size > MAX_IMPORTED_ASSET_BYTES
+    file.size > MAX_ASSET_UPLOAD_BYTES
   ) {
     return prepareStudioAssetImport({ ...input, content: '' }, options);
   }
