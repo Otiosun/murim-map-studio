@@ -12,6 +12,8 @@ export interface CommandHistoryEntry {
   forward: CommandPayload;
   inverse: CommandPayload;
   originalCommandId: string;
+  beforeDocument: WorldDocument;
+  afterDocument: WorldDocument;
 }
 
 export interface CommandHistory {
@@ -30,13 +32,21 @@ export interface HistoryFailure {
   ok: false;
   document: WorldDocument;
   history: CommandHistory;
-  error: CommandApplyFailure['error'] | { code: 'history_empty'; message: string };
+  error:
+    | CommandApplyFailure['error']
+    | { code: 'history_empty'; message: string }
+    | { code: 'history_document_mismatch'; message: string };
 }
 
 export type HistoryResult = HistorySuccess | HistoryFailure;
 
 export function createCommandHistory(): CommandHistory {
   return { past: [], future: [] };
+}
+
+function sameDocument(left: WorldDocument, right: WorldDocument): boolean {
+  if (left === right) return true;
+  return JSON.stringify(left) === JSON.stringify(right);
 }
 
 export function executeWithHistory(
@@ -59,6 +69,8 @@ export function executeWithHistory(
           forward: structuredClone(command.payload),
           inverse: structuredClone(result.inverse),
           originalCommandId: command.meta.commandId,
+          beforeDocument: document,
+          afterDocument: result.document,
         },
       ],
       future: [],
@@ -97,6 +109,18 @@ export function undoWithHistory(
     };
   }
 
+  if (!sameDocument(document, entry.afterDocument)) {
+    return {
+      ok: false,
+      document,
+      history,
+      error: {
+        code: 'history_document_mismatch',
+        message: 'The current document diverged from the history head; undo was refused.',
+      },
+    };
+  }
+
   const result = applyWorldCommand(document, { meta, payload: structuredClone(entry.inverse) });
   if (!result.ok) {
     return { ok: false, document, history, error: result.error };
@@ -104,7 +128,7 @@ export function undoWithHistory(
 
   return {
     ok: true,
-    document: result.document,
+    document: entry.beforeDocument,
     history: {
       past: history.past.slice(0, -1),
       future: [...history.future, entry],
@@ -128,6 +152,18 @@ export function redoWithHistory(
     };
   }
 
+  if (!sameDocument(document, entry.beforeDocument)) {
+    return {
+      ok: false,
+      document,
+      history,
+      error: {
+        code: 'history_document_mismatch',
+        message: 'The current document diverged from the redo base; redo was refused.',
+      },
+    };
+  }
+
   const result = applyWorldCommand(document, { meta, payload: structuredClone(entry.forward) });
   if (!result.ok) {
     return { ok: false, document, history, error: result.error };
@@ -135,16 +171,9 @@ export function redoWithHistory(
 
   return {
     ok: true,
-    document: result.document,
+    document: entry.afterDocument,
     history: {
-      past: [
-        ...history.past,
-        {
-          forward: structuredClone(entry.forward),
-          inverse: structuredClone(result.inverse),
-          originalCommandId: entry.originalCommandId,
-        },
-      ],
+      past: [...history.past, entry],
       future: history.future.slice(0, -1),
     },
     auditEvent: historyAudit(result.auditEvent, 'redo', entry.originalCommandId),
