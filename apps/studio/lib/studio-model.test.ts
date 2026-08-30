@@ -10,11 +10,7 @@ import {
   type WorldDocument,
 } from '@murim/domain';
 import { describe, expect, it } from 'vitest';
-import {
-  BUILT_IN_ASSET_ENTITIES,
-  LEGACY_STUDIO_WORLD_ID,
-  STUDIO_WORLD_ID,
-} from './studio-assets';
+import { BUILT_IN_ASSET_ENTITIES, LEGACY_STUDIO_WORLD_ID, STUDIO_WORLD_ID } from './studio-assets';
 import {
   createInitialWorldDocument,
   decodeStudioDocument,

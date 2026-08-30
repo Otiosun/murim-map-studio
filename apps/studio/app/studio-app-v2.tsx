@@ -5,18 +5,23 @@ import {
   executeWithHistory,
   redoWithHistory,
   undoWithHistory,
+  type AssetManifest,
   type CommandHistory,
   type CommandMetadata,
   type CommandPayload,
   type EntityId,
   type LocationEntity,
   type RouteEntity,
+  type TemplateEntity,
   type WorldDocument,
   type WorldEntity,
 } from '@murim/domain';
+import { instantiateTemplateEntity } from '@murim/world-schema';
 import Konva from 'konva';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Circle, Group, Layer, Line, Rect, Stage, Text } from 'react-konva';
+import { StudioAssetVisual } from './studio-asset-visual';
+import { StudioLibraryPanel, type StudioLibraryMode } from './studio-library-panel';
 import {
   STUDIO_STORAGE_KEY,
   createInitialWorldDocument,
@@ -25,6 +30,7 @@ import {
   inspectorFieldsFor,
   inspectorStringValue,
 } from '../lib/studio-model';
+import { assetManifestForId } from '../lib/studio-assets';
 
 const DEFAULT_WIDTH = 1100;
 const DEFAULT_HEIGHT = 720;
@@ -32,7 +38,7 @@ const GRID_SIZE = 48;
 const MIN_SCALE = 0.35;
 const MAX_SCALE = 2.4;
 
-type Tool = 'select' | 'pan' | 'location' | 'route';
+type Tool = 'select' | 'pan' | 'location' | 'route' | 'template';
 type SaveStatus = 'saved' | 'saving' | 'error' | 'conflict';
 
 interface ViewportState {
@@ -103,6 +109,9 @@ export function StudioAppV2() {
   const [selectedId, setSelectedId] = useState<EntityId | null>(null);
   const [routeStartId, setRouteStartId] = useState<EntityId | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>('saved');
+  const [libraryMode, setLibraryMode] = useState<StudioLibraryMode | null>(null);
+  const [libraryQuery, setLibraryQuery] = useState('');
+  const [pendingTemplate, setPendingTemplate] = useState<TemplateEntity | null>(null);
   const [hydrated, setHydrated] = useState(false);
   const [message, setMessage] = useState('Clique em “Local” e depois no canvas para começar.');
   const [viewport, setViewport] = useState<ViewportState>({
@@ -133,6 +142,11 @@ export function StudioAppV2() {
   );
   const inspectorFields = useMemo(
     () => (selectedEntity ? inspectorFieldsFor(selectedEntity) : []),
+    [selectedEntity],
+  );
+  const selectedAssetManifest = useMemo(
+    () =>
+      selectedEntity?.type === 'location' ? assetManifestForId(selectedEntity.assetId) : undefined,
     [selectedEntity],
   );
 
@@ -292,6 +306,73 @@ export function StudioAppV2() {
     [applyPayload, locations.length, worldDocument.rootWorldId],
   );
 
+  const createFromTemplate = useCallback(
+    (template: TemplateEntity, x: number, y: number) => {
+      const timestamp = nowIso();
+      try {
+        const entity = instantiateTemplateEntity(template, {
+          id: crypto.randomUUID(),
+          worldId: worldDocument.rootWorldId,
+          createdAt: timestamp,
+          overrides: {
+            position: { x: Math.round(x), y: Math.round(y) },
+          },
+        });
+
+        if (entity.type !== 'location') {
+          setMessage(`O modelo ${template.name} ainda não possui renderer de criação nesta fase.`);
+          return;
+        }
+
+        if (applyPayload({ kind: 'CreateEntity', entity })) {
+          setSelectedId(entity.id);
+          setPendingTemplate(null);
+          setTool('select');
+          setMessage(
+            `${template.name} criado com ID próprio. O modelo não mantém vínculo mutável.`,
+          );
+        }
+      } catch (error) {
+        setMessage(error instanceof Error ? error.message : 'Falha ao instanciar modelo.');
+      }
+    },
+    [applyPayload, worldDocument.rootWorldId],
+  );
+
+  const assignAsset = useCallback(
+    (manifest: AssetManifest) => {
+      if (!selectedEntity || selectedEntity.type !== 'location') {
+        setMessage('Selecione um Location antes de escolher um visual.');
+        return;
+      }
+      if (
+        applyPayload({
+          kind: 'UpdateProperty',
+          entityId: selectedEntity.id,
+          property: 'assetId',
+          mutation: { operation: 'set', value: manifest.assetId },
+        })
+      ) {
+        setMessage(`Visual “${manifest.name}” aplicado sem alterar a identidade do Location.`);
+      }
+    },
+    [applyPayload, selectedEntity],
+  );
+
+  const clearAsset = useCallback(() => {
+    if (!selectedEntity || selectedEntity.type !== 'location' || !selectedEntity.assetId) return;
+    if (
+      applyPayload({
+        kind: 'UpdateProperty',
+        entityId: selectedEntity.id,
+        property: 'assetId',
+        mutation: { operation: 'unset' },
+      })
+    ) {
+      setMessage('Visual removido. O Location semântico permanece intacto.');
+    }
+  }, [applyPayload, selectedEntity]);
+
   const selectLocationForRoute = useCallback(
     (locationId: EntityId) => {
       if (!routeStartId) {
@@ -388,14 +469,19 @@ export function StudioAppV2() {
   }, [view, viewport]);
 
   const createAtPointer = useCallback(() => {
-    if (tool !== 'location') return;
+    if (tool !== 'location' && tool !== 'template') return;
     const stage = stageRef.current;
     const pointer = stage?.getPointerPosition();
     if (!stage || !pointer) return;
     const transform = stage.getAbsoluteTransform().copy().invert();
     const point = transform.point(pointer);
+
+    if (tool === 'template' && pendingTemplate) {
+      createFromTemplate(pendingTemplate, point.x, point.y);
+      return;
+    }
     createLocation(point.x, point.y);
-  }, [createLocation, tool]);
+  }, [createFromTemplate, createLocation, pendingTemplate, tool]);
 
   const handlePinch = useCallback(
     (event: Konva.KonvaEventObject<TouchEvent>) => {
@@ -509,6 +595,30 @@ export function StudioAppV2() {
             <span className="tool-key">R</span>
             Rota
           </button>
+          <button
+            type="button"
+            className={libraryMode === 'assets' ? 'tool active' : 'tool'}
+            disabled={selectedEntity?.type !== 'location'}
+            onClick={() => {
+              setLibraryMode((current) => (current === 'assets' ? null : 'assets'));
+              setLibraryQuery('');
+            }}
+          >
+            <span className="tool-key">A</span>
+            Visuais
+          </button>
+          <button
+            type="button"
+            className={libraryMode === 'templates' ? 'tool active' : 'tool'}
+            onClick={() => {
+              setLibraryMode((current) => (current === 'templates' ? null : 'templates'));
+              setLibraryQuery('');
+              setRouteStartId(null);
+            }}
+          >
+            <span className="tool-key">T</span>
+            Modelos
+          </button>
           <div className="tool-divider" />
           <button
             type="button"
@@ -537,6 +647,28 @@ export function StudioAppV2() {
               {locations.length} locais · {routes.length} rotas · {Math.round(view.scale * 100)}%
             </span>
           </div>
+
+          {libraryMode ? (
+            <StudioLibraryPanel
+              mode={libraryMode}
+              query={libraryQuery}
+              selectedAssetId={
+                selectedEntity?.type === 'location' ? selectedEntity.assetId : undefined
+              }
+              onQueryChange={setLibraryQuery}
+              onSelectAsset={assignAsset}
+              onClearAsset={clearAsset}
+              onSelectTemplate={(template) => {
+                setPendingTemplate(template);
+                setTool('template');
+                setLibraryMode(null);
+                setSelectedId(null);
+                setRouteStartId(null);
+                setMessage(`Modelo “${template.name}” armado. Toque no canvas para posicionar.`);
+              }}
+              onClose={() => setLibraryMode(null)}
+            />
+          ) : null}
 
           <div ref={canvasShellRef} className={`canvas-shell cursor-${tool}`}>
             <Stage
@@ -664,16 +796,14 @@ export function StudioAppV2() {
                         });
                       }}
                     >
-                      <Circle
-                        radius={(selected || routeOrigin ? 14 : 11) / view.scale}
-                        fill={routeOrigin ? '#e8c66a' : selected ? '#d9dfda' : '#9ca7a1'}
-                        stroke="#0c0d0d"
-                        strokeWidth={3 / view.scale}
+                      <StudioAssetVisual
+                        assetId={location.assetId}
+                        scale={view.scale}
+                        highlighted={selected || routeOrigin}
                       />
-                      <Circle radius={4 / view.scale} fill="#0c0d0d" listening={false} />
                       <Text
                         text={location.name}
-                        x={18 / view.scale}
+                        x={28 / view.scale}
                         y={-8 / view.scale}
                         fontSize={13 / view.scale}
                         fill={selected ? '#f3f0e8' : '#aeb6b2'}
@@ -757,6 +887,35 @@ export function StudioAppV2() {
                     <dd>{selectedEntity.toLocationId.slice(0, 8)}</dd>
                   </div>
                 </dl>
+              ) : null}
+
+              {selectedEntity.type === 'location' ? (
+                <div className="visual-control">
+                  <span className="eyebrow">VISUAL</span>
+                  <div className="visual-control-row">
+                    <span className="asset-preview compact">
+                      {selectedAssetManifest ? (
+                        <img src={selectedAssetManifest.source} alt="" />
+                      ) : (
+                        '·'
+                      )}
+                    </span>
+                    <div>
+                      <strong>{selectedAssetManifest?.name ?? 'Sem símbolo'}</strong>
+                      <small>ID semântico não depende do visual.</small>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    className="button library-trigger"
+                    onClick={() => {
+                      setLibraryMode('assets');
+                      setLibraryQuery('');
+                    }}
+                  >
+                    Escolher visual
+                  </button>
+                </div>
               ) : null}
 
               {selectedEntity.type !== 'world' ? (

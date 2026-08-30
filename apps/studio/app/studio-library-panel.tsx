@@ -39,13 +39,21 @@ export function StudioLibraryPanel({
   const templates = BUILT_IN_TEMPLATES.filter((template) => matchesTemplate(template, query));
 
   return (
-    <section className="library-panel" aria-label={mode === 'assets' ? 'Biblioteca visual' : 'Modelos'}>
+    <section
+      className="library-panel"
+      aria-label={mode === 'assets' ? 'Biblioteca visual' : 'Modelos'}
+    >
       <header className="library-heading">
         <div>
           <span className="eyebrow">{mode === 'assets' ? 'BIBLIOTECA VISUAL' : 'MODELOS'}</span>
           <strong>{mode === 'assets' ? 'Símbolos do mapa' : 'Criar a partir de modelo'}</strong>
         </div>
-        <button type="button" className="library-close" onClick={onClose} aria-label="Fechar painel">
+        <button
+          type="button"
+          className="library-close"
+          onClick={onClose}
+          aria-label="Fechar painel"
+        >
           ×
         </button>
       </header>
@@ -108,7 +116,9 @@ export function StudioLibraryPanel({
               </span>
             </button>
           ))}
-          {templates.length === 0 ? <p className="library-empty">Nenhum modelo encontrado.</p> : null}
+          {templates.length === 0 ? (
+            <p className="library-empty">Nenhum modelo encontrado.</p>
+          ) : null}
         </div>
       )}
 
