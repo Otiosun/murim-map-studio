@@ -5,7 +5,7 @@ import { useEffect, useState } from 'react';
 import { assetManifestForId } from '../lib/studio-assets';
 
 interface StudioAssetVisualProps {
-  assetId?: string;
+  assetId?: string | undefined;
   scale: number;
   highlighted?: boolean;
 }
