@@ -1,45 +1,37 @@
 import { describe, expect, test } from 'vitest';
-import type { KnowledgeState, PolylineGeometry, WorldPoint } from '@murim/domain';
 import { mapProjectionSchema } from '../../world-schema/src/schemas';
-import * as mapRenderer from './index';
-import type { MapProjection } from './projection';
-
-interface PlayerProjectionNodeInput {
-  projectionId: string;
-  kind: string;
-  label: string;
-  knowledgeState: KnowledgeState;
-  confidence: number;
-  role: 'known' | 'ghost';
-  position: WorldPoint;
-  approximateRadius?: number;
-}
-
-interface PlayerProjectionRouteInput {
-  projectionId: string;
-  fromProjectionId: string;
-  toProjectionId: string;
-  label?: string;
-  knowledgeState: KnowledgeState;
-  path: PolylineGeometry;
-}
-
-type PlayerProjectionBuilder = (input: {
-  mapKey: string;
-  generatedAt: string;
-  nodes: readonly PlayerProjectionNodeInput[];
-  routes: readonly PlayerProjectionRouteInput[];
-}) => MapProjection;
-
-function getBuilder(): PlayerProjectionBuilder {
-  const candidate = (mapRenderer as { buildPlayerMapProjection?: unknown })
-    .buildPlayerMapProjection;
-
-  expect(candidate).toBeTypeOf('function');
-  return candidate as PlayerProjectionBuilder;
-}
+import {
+  buildPlayerMapProjection,
+  type PlayerProjectionNodeInput,
+  type PlayerProjectionRouteInput,
+} from './player-projection';
 
 const generatedAt = '2026-08-30T05:10:00.000Z';
+
+const forbiddenProjectionKeys = new Set([
+  'canonicalId',
+  'sourceLocationId',
+  'source_location_id',
+  'worldId',
+  'world_id',
+  'secretPayload',
+  'secret_payload',
+]);
+
+function collectObjectKeys(value: unknown): string[] {
+  if (Array.isArray(value)) {
+    return value.flatMap(collectObjectKeys);
+  }
+
+  if (value === null || typeof value !== 'object') {
+    return [];
+  }
+
+  return Object.entries(value as Record<string, unknown>).flatMap(([key, nestedValue]) => [
+    key,
+    ...collectObjectKeys(nestedValue),
+  ]);
+}
 
 const village: PlayerProjectionNodeInput = {
   projectionId: 'node-village',
@@ -62,9 +54,24 @@ const hiddenRuinRumor: PlayerProjectionNodeInput = {
   approximateRadius: 180,
 };
 
+const visibleRoute: PlayerProjectionRouteInput = {
+  projectionId: 'route-visible',
+  fromProjectionId: 'node-village',
+  toProjectionId: 'node-hidden-rumor',
+  label: 'Old trail',
+  knowledgeState: 'indication',
+  path: {
+    kind: 'polyline',
+    points: [
+      { x: 100, y: 200 },
+      { x: 820, y: 860 },
+    ],
+  },
+};
+
 describe('buildPlayerMapProjection', () => {
   test('builds known and ghost nodes using only player-safe projection data', () => {
-    const projection = getBuilder()({
+    const projection = buildPlayerMapProjection({
       mapKey: 'player-a:outer-ring',
       generatedAt,
       nodes: [village, hiddenRuinRumor],
@@ -108,25 +115,12 @@ describe('buildPlayerMapProjection', () => {
   });
 
   test('emits routes only when both projection-local endpoints exist', () => {
-    const projection = getBuilder()({
+    const projection = buildPlayerMapProjection({
       mapKey: 'player-a:outer-ring',
       generatedAt,
       nodes: [village, hiddenRuinRumor],
       routes: [
-        {
-          projectionId: 'route-visible',
-          fromProjectionId: 'node-village',
-          toProjectionId: 'node-hidden-rumor',
-          label: 'Old trail',
-          knowledgeState: 'indication',
-          path: {
-            kind: 'polyline',
-            points: [
-              { x: 100, y: 200 },
-              { x: 820, y: 860 },
-            ],
-          },
-        },
+        visibleRoute,
         {
           projectionId: 'route-missing-endpoint',
           fromProjectionId: 'node-village',
@@ -163,5 +157,55 @@ describe('buildPlayerMapProjection', () => {
         knowledgeState: 'indication',
       },
     ]);
+  });
+
+  test('requires every ghost node to carry a positive uncertainty radius', () => {
+    const ghostWithoutRadius = { ...hiddenRuinRumor };
+    delete ghostWithoutRadius.approximateRadius;
+
+    expect(() =>
+      buildPlayerMapProjection({
+        mapKey: 'player-a:outer-ring',
+        generatedAt,
+        nodes: [village, ghostWithoutRadius],
+        routes: [],
+      }),
+    ).toThrowError('Ghost projection nodes require a positive approximateRadius');
+
+    expect(() =>
+      buildPlayerMapProjection({
+        mapKey: 'player-a:outer-ring',
+        generatedAt,
+        nodes: [village, { ...hiddenRuinRumor, approximateRadius: 0 }],
+        routes: [],
+      }),
+    ).toThrowError('Ghost projection nodes require a positive approximateRadius');
+  });
+
+  test('does not copy canonical or private field names into the normalized projection', () => {
+    const taintedVillage = {
+      ...village,
+      canonicalId: 'canonical-village',
+      worldId: 'world-private-id',
+      secret_payload: { hidden: true },
+    } as PlayerProjectionNodeInput;
+    const taintedRoute = {
+      ...visibleRoute,
+      sourceLocationId: 'canonical-route-source',
+      source_location_id: 'canonical-route-source',
+      secretPayload: { hidden: true },
+    } as PlayerProjectionRouteInput;
+
+    const projection = buildPlayerMapProjection({
+      mapKey: 'player-a:outer-ring',
+      generatedAt,
+      nodes: [taintedVillage, hiddenRuinRumor],
+      routes: [taintedRoute],
+    });
+
+    expect(mapProjectionSchema.parse(projection)).toEqual(projection);
+    expect(collectObjectKeys(projection).filter((key) => forbiddenProjectionKeys.has(key))).toEqual(
+      [],
+    );
   });
 });
