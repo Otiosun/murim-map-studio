@@ -5,6 +5,7 @@ const PLAYER_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
 const PLAYER_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2';
 const CANONICAL_VILLAGE_ID = '20000000-0000-4000-8000-000000000001';
 const CANONICAL_SECRET_ID = '20000000-0000-4000-8000-000000000002';
+const PLAYER_A_SECRET_PROJECTION_ID = '91000000-0000-4000-8000-000000000002';
 const PLAYER_B_SECRET_PROJECTION_ID = '92000000-0000-4000-8000-000000000002';
 const SECRET_NAME = 'Mosteiro Sob as Raízes';
 
@@ -109,6 +110,16 @@ const playerAResponse = await request(
 const playerARows = await readJson(playerAResponse, 'player A map projection');
 assert(playerARows.length === 2, `player A expected 2 rows, received ${playerARows.length}`);
 
+const playerASecret = playerARows.find(
+  (row) => row.projection_id === PLAYER_A_SECRET_PROJECTION_ID,
+);
+assert(playerASecret, 'player A did not receive the expected rumor projection');
+assert(playerASecret.role === 'ghost', 'player A rumor projection is not marked as a ghost');
+assert(
+  Number.isFinite(playerASecret.approximate_radius) && playerASecret.approximate_radius > 0,
+  'player A ghost projection has no positive uncertainty radius',
+);
+
 const playerAJson = JSON.stringify(playerARows);
 assert(!playerAJson.includes(SECRET_NAME), 'player A received the canonical secret location name');
 assert(
@@ -172,13 +183,31 @@ const playerBResponse = await request(
 );
 const playerBRows = await readJson(playerBResponse, 'player B map projection');
 assert(playerBRows.length === 2, `player B expected 2 rows, received ${playerBRows.length}`);
+
+const playerBSecret = playerBRows.find(
+  (row) => row.projection_id === PLAYER_B_SECRET_PROJECTION_ID,
+);
 assert(
-  playerBRows.some(
-    (row) => row.projection_id === PLAYER_B_SECRET_PROJECTION_ID && row.label === SECRET_NAME,
-  ),
+  playerBSecret?.label === SECRET_NAME,
   'authorized player B did not receive the investigated secret projection',
+);
+assert(playerBSecret.role === 'known', 'player B investigated projection is not marked as known');
+assert(
+  playerBSecret.approximate_radius == null,
+  'player B known projection unexpectedly retains an uncertainty radius',
+);
+
+const playerBJson = JSON.stringify(playerBRows);
+assert(playerAJson !== playerBJson, 'player A and player B unexpectedly received identical maps');
+assert(
+  playerBJson.includes(SECRET_NAME),
+  'player B map does not contain the authorized secret name',
+);
+assert(
+  !playerBJson.includes(PLAYER_A_SECRET_PROJECTION_ID),
+  'player B received player A projection-local ID',
 );
 
 console.log(
-  'PostgREST leakage smoke passed: private truth and trusted mutations are not reachable by player A.',
+  'PostgREST leakage smoke passed: player A receives only the safe ghost while player B receives the authorized investigated location.',
 );

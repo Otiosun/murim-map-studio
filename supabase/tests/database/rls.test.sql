@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(19);
+select plan(22);
 
 select ok(
   not has_schema_privilege('authenticated', 'world_private', 'USAGE'),
@@ -61,6 +61,19 @@ select hasnt_column(
   'player projection exposes no secret payload column'
 );
 
+select is(
+  (
+    select to_jsonb(array_agg(enumlabel::text order by enumsortorder))
+    from pg_enum
+    join pg_type on pg_type.oid = pg_enum.enumtypid
+    join pg_namespace on pg_namespace.oid = pg_type.typnamespace
+    where pg_namespace.nspname = 'world_private'
+      and pg_type.typname = 'knowledge_state'
+  ),
+  '["rumor","indication","localized","confirmed","investigated","understood"]'::jsonb,
+  'database knowledge states match the canonical domain grammar'
+);
+
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
 set local role authenticated;
 
@@ -68,6 +81,16 @@ select results_eq(
   $$select count(*)::bigint from player_api.map_nodes$$,
   $$values (2::bigint)$$,
   'player A sees only player A projection rows'
+);
+
+select results_eq(
+  $$
+    select role, approximate_radius
+    from player_api.map_nodes
+    where projection_id = '91000000-0000-4000-8000-000000000002'::uuid
+  $$,
+  $$values ('ghost'::text, 180::double precision)$$,
+  'player A receives the secret only as a ghost with deterministic uncertainty'
 );
 
 select results_eq(
@@ -104,6 +127,16 @@ select results_eq(
   $$select count(*)::bigint from player_api.map_nodes$$,
   $$values (2::bigint)$$,
   'player B sees only player B projection rows'
+);
+
+select results_eq(
+  $$
+    select role, approximate_radius
+    from player_api.map_nodes
+    where projection_id = '92000000-0000-4000-8000-000000000002'::uuid
+  $$,
+  $$values ('known'::text, null::double precision)$$,
+  'player B investigated secret is known and carries no uncertainty radius'
 );
 
 select results_eq(
