@@ -30,7 +30,7 @@ jobs:
           corepack prepare pnpm@11.21.0 --activate
 
       - name: Install and refresh lockfile
-        run: pnpm install
+        run: pnpm install --no-frozen-lockfile
 
       - name: Format Studio files
         run: pnpm prettier --write apps/studio/app/page.tsx apps/studio/app/studio-app.tsx apps/studio/app/globals.css apps/studio/package.json pnpm-lock.yaml
@@ -47,7 +47,7 @@ jobs:
           rm .github/workflows/studio-bootstrap-write.yml
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add apps/studio package.json pnpm-lock.yaml .github/workflows/studio-bootstrap-write.yml
+          git add apps/studio pnpm-lock.yaml .github/workflows/studio-bootstrap-write.yml
           if git diff --cached --quiet; then
             exit 0
           fi
