@@ -257,7 +257,14 @@ export interface StudioAssetImportInput {
   content: string;
 }
 
-export function prepareStudioAssetImport(input: StudioAssetImportInput) {
+export interface StudioAssetImportOptions {
+  sanitizeSvg?: (markup: string) => string;
+}
+
+export function prepareStudioAssetImport(
+  input: StudioAssetImportInput,
+  options: StudioAssetImportOptions = {},
+) {
   if (!['image/svg+xml', 'image/webp', 'image/png'].includes(input.mediaType)) {
     return {
       ok: false as const,
@@ -283,6 +290,14 @@ export function prepareStudioAssetImport(input: StudioAssetImportInput) {
       size: input.size,
       previewSource: input.content,
       sanitized: false as const,
+    };
+  }
+
+  if (!options.sanitizeSvg) {
+    return {
+      ok: false as const,
+      code: 'svg-sanitizer-required' as const,
+      message: 'SVG precisa ser sanitizado antes do preview.',
     };
   }
 
