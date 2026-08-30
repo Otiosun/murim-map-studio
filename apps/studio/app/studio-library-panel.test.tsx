@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { StudioLibraryPanel } from './studio-library-panel';
 
 describe('StudioLibraryPanel asset import', () => {
+  // The browser picker must expose only media types accepted by the import contract.
   it('offers a file input restricted to the canonical visual asset media types', () => {
     const html = renderToStaticMarkup(
       <StudioLibraryPanel
