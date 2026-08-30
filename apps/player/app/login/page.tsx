@@ -3,6 +3,8 @@ import { createSupabasePlayerSessionResolver } from '../../lib/auth/supabase-pla
 import { createPlayerSupabaseServerClient } from '../../lib/supabase/server';
 import { LoginForm } from './login-form';
 
+export const dynamic = 'force-dynamic';
+
 export default async function LoginPage() {
   const supabase = await createPlayerSupabaseServerClient();
   const session = await createSupabasePlayerSessionResolver(supabase).resolve();
