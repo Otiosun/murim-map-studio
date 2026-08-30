@@ -29,4 +29,19 @@ describe('studio asset import', () => {
       message: 'Use SVG, WebP ou PNG.',
     });
   });
+
+  it('rejects an asset larger than 2 MiB', () => {
+    const result = prepareStudioAssetImport({
+      fileName: 'huge-map-symbol.png',
+      mediaType: 'image/png',
+      size: 2 * 1024 * 1024 + 1,
+      content: 'data:image/png;base64,AA==',
+    });
+
+    expect(result).toEqual({
+      ok: false,
+      code: 'file-too-large',
+      message: 'O asset deve ter no máximo 2 MiB.',
+    });
+  });
 });
