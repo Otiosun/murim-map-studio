@@ -106,6 +106,17 @@ describe('createSupabasePlayerProjectionSource', () => {
     expect(projection.projectionVersion).toBe(1);
     expect(projection.mapKey).toBe('player-map');
     expect(projection.generatedAt).toBe(generatedAt);
+    expect(projection.items[0]).toMatchObject({ kind: 'node', position: { x: 100, y: 200 } });
+    expect(projection.items[2]).toMatchObject({
+      kind: 'route',
+      path: {
+        kind: 'polyline',
+        points: [
+          { x: 100, y: 200 },
+          { x: 820, y: 860 },
+        ],
+      },
+    });
     expect(JSON.stringify(projection)).not.toContain('secret_payload');
     expect(JSON.stringify(projection)).not.toContain('canonicalId');
     expect(projection.items).toHaveLength(3);
