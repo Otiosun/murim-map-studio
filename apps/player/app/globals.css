@@ -14,6 +14,11 @@ body {
   font-family: ui-sans-serif, system-ui, sans-serif;
 }
 
+button,
+input {
+  font: inherit;
+}
+
 .foundation-shell {
   min-height: 100vh;
   display: grid;
@@ -33,4 +38,68 @@ body {
   letter-spacing: 0.18em;
   font-size: 0.75rem;
   opacity: 0.65;
+}
+
+.login-card {
+  width: min(100%, 30rem);
+  display: grid;
+  gap: 1rem;
+  padding: 1.5rem;
+  border: 1px solid rgb(27 25 21 / 18%);
+  background: rgb(255 255 255 / 35%);
+}
+
+.login-stack,
+.login-form {
+  display: grid;
+  gap: 0.75rem;
+}
+
+.login-form input {
+  width: 100%;
+  min-height: 2.75rem;
+  padding: 0.65rem 0.75rem;
+  border: 1px solid rgb(27 25 21 / 28%);
+  background: #fffdf8;
+  color: inherit;
+}
+
+.login-form button,
+.button-secondary {
+  min-height: 2.75rem;
+  padding: 0.65rem 0.9rem;
+  border: 1px solid #1b1915;
+  background: #1b1915;
+  color: #fffdf8;
+  cursor: pointer;
+}
+
+.login-form button:disabled,
+.button-secondary:disabled {
+  cursor: wait;
+  opacity: 0.55;
+}
+
+.login-secondary-form {
+  margin: 0;
+}
+
+.button-secondary {
+  background: transparent;
+  color: #1b1915;
+}
+
+.login-note,
+.login-message,
+.login-link {
+  font-size: 0.9rem;
+  line-height: 1.5;
+}
+
+.login-message {
+  min-height: 1.35em;
+}
+
+.login-link {
+  color: inherit;
 }
