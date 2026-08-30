@@ -71,11 +71,14 @@ function createPlayerApiClient(rows: Record<TableName, unknown[]>) {
   return { client, calls };
 }
 
-function createSource(rows: Record<TableName, unknown[]>) {
+function createSource(
+  rows: Record<TableName, unknown[]>,
+  now: () => string = () => generatedAt,
+) {
   const fake = createPlayerApiClient(rows);
   return {
     ...fake,
-    source: createSupabasePlayerProjectionSource(fake.client, () => generatedAt),
+    source: createSupabasePlayerProjectionSource(fake.client, now),
   };
 }
 
@@ -119,6 +122,18 @@ describe('createSupabasePlayerProjectionSource', () => {
     expect(JSON.stringify(projection)).not.toContain('secret_payload');
     expect(JSON.stringify(projection)).not.toContain('canonicalId');
     expect(projection.items).toHaveLength(3);
+  });
+
+  it('rejects the built projection when it fails the strict schema', async () => {
+    const { source } = createSource(
+      {
+        map_nodes: [nodeRow()],
+        map_routes: [],
+      },
+      () => 'not-an-iso-timestamp',
+    );
+
+    await expect(source.load(playerId)).rejects.toThrow();
   });
 
   it('rejects a known node carrying uncertainty', async () => {
