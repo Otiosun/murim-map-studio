@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(20);
+select plan(22);
 
 select ok(
   not has_schema_privilege('authenticated', 'world_private', 'USAGE'),
@@ -84,6 +84,16 @@ select results_eq(
 );
 
 select results_eq(
+  $$
+    select role, approximate_radius
+    from player_api.map_nodes
+    where projection_id = '91000000-0000-4000-8000-000000000002'::uuid
+  $$,
+  $$values ('ghost'::text, 180::double precision)$$,
+  'player A receives the secret only as a ghost with deterministic uncertainty'
+);
+
+select results_eq(
   $$select count(*)::bigint from player_api.map_nodes where label = 'Mosteiro Sob as Raízes'$$,
   $$values (0::bigint)$$,
   'player A cannot obtain the canonical secret location name'
@@ -117,6 +127,16 @@ select results_eq(
   $$select count(*)::bigint from player_api.map_nodes$$,
   $$values (2::bigint)$$,
   'player B sees only player B projection rows'
+);
+
+select results_eq(
+  $$
+    select role, approximate_radius
+    from player_api.map_nodes
+    where projection_id = '92000000-0000-4000-8000-000000000002'::uuid
+  $$,
+  $$values ('known'::text, null::double precision)$$,
+  'player B investigated secret is known and carries no uncertainty radius'
 );
 
 select results_eq(
