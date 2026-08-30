@@ -3,7 +3,12 @@ export interface PlayerSupabaseEnv {
   publishableKey: string;
 }
 
-export function readPlayerSupabaseEnv(env: NodeJS.ProcessEnv): PlayerSupabaseEnv {
+export interface PlayerSupabaseEnvSource {
+  NEXT_PUBLIC_SUPABASE_URL?: string;
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?: string;
+}
+
+export function readPlayerSupabaseEnv(env: PlayerSupabaseEnvSource): PlayerSupabaseEnv {
   const url = env.NEXT_PUBLIC_SUPABASE_URL?.trim();
   const publishableKey = env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY?.trim();
 
