@@ -122,7 +122,10 @@ export function StudioApp() {
   const lastSavedJsonRef = useRef('');
 
   const locations = useMemo(
-    () => worldDocument.entities.filter((entity): entity is LocationEntity => entity.type === 'location'),
+    () =>
+      worldDocument.entities.filter(
+        (entity): entity is LocationEntity => entity.type === 'location',
+      ),
     [worldDocument],
   );
   const routes = useMemo(
@@ -469,11 +472,21 @@ export function StudioApp() {
 
           <div className="tool-divider" />
 
-          <button type="button" className="tool" disabled={history.past.length === 0} onClick={undo}>
+          <button
+            type="button"
+            className="tool"
+            disabled={history.past.length === 0}
+            onClick={undo}
+          >
             <span className="tool-key">↶</span>
             Undo
           </button>
-          <button type="button" className="tool" disabled={history.future.length === 0} onClick={redo}>
+          <button
+            type="button"
+            className="tool"
+            disabled={history.future.length === 0}
+            onClick={redo}
+          >
             <span className="tool-key">↷</span>
             Redo
           </button>
@@ -565,16 +578,8 @@ export function StudioApp() {
                     strokeWidth={1 / view.scale}
                   />
                 ))}
-                <Line
-                  points={[-5000, 0, 5000, 0]}
-                  stroke="#303532"
-                  strokeWidth={1 / view.scale}
-                />
-                <Line
-                  points={[0, -5000, 0, 5000]}
-                  stroke="#303532"
-                  strokeWidth={1 / view.scale}
-                />
+                <Line points={[-5000, 0, 5000, 0]} stroke="#303532" strokeWidth={1 / view.scale} />
+                <Line points={[0, -5000, 0, 5000]} stroke="#303532" strokeWidth={1 / view.scale} />
               </Layer>
 
               <Layer>
