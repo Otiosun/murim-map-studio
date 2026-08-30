@@ -154,28 +154,40 @@ export function StudioApp() {
   }, []);
 
   useEffect(() => {
-    try {
-      const raw = window.localStorage.getItem(STORAGE_KEY);
-      if (raw) {
-        const parsed: unknown = JSON.parse(raw);
-        if (isStoredDocument(parsed)) {
-          setWorldDocument(parsed.document);
-          lastSavedJsonRef.current = JSON.stringify(parsed.document);
-          setMessage('Documento local restaurado com IDs e posições preservados.');
+    let cancelled = false;
+    const initialDocument = worldDocument;
+
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+
+      try {
+        const raw = window.localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed: unknown = JSON.parse(raw);
+          if (isStoredDocument(parsed)) {
+            setWorldDocument(parsed.document);
+            lastSavedJsonRef.current = JSON.stringify(parsed.document);
+            setMessage('Documento local restaurado com IDs e posições preservados.');
+          } else {
+            setSaveStatus('error');
+            setMessage('O save local foi recusado porque não passa nas invariantes do domínio.');
+          }
         } else {
-          setSaveStatus('error');
-          setMessage('O save local foi recusado porque não passa nas invariantes do domínio.');
+          lastSavedJsonRef.current = JSON.stringify(initialDocument);
         }
-      } else {
-        lastSavedJsonRef.current = JSON.stringify(worldDocument);
+      } catch {
+        setSaveStatus('error');
+        setMessage('Não foi possível ler o save local. O documento em memória foi preservado.');
+      } finally {
+        if (!cancelled) setHydrated(true);
       }
-    } catch {
-      setSaveStatus('error');
-      setMessage('Não foi possível ler o save local. O documento em memória foi preservado.');
-    } finally {
-      setHydrated(true);
-    }
-    // We intentionally hydrate once from local persistence.
+    }, 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // We intentionally hydrate once from local persistence after the initial client commit.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -184,7 +196,6 @@ export function StudioApp() {
     const encoded = JSON.stringify(worldDocument);
     if (encoded === lastSavedJsonRef.current) return;
 
-    setSaveStatus('saving');
     const timer = window.setTimeout(() => {
       persist(worldDocument);
     }, 650);
@@ -503,7 +514,10 @@ export function StudioApp() {
 
                 const oldScale = view.scale;
                 const direction = event.evt.deltaY > 0 ? -1 : 1;
-                const nextScale = Math.min(2.4, Math.max(0.35, oldScale * (direction > 0 ? 1.08 : 1 / 1.08)));
+                const nextScale = Math.min(
+                  2.4,
+                  Math.max(0.35, oldScale * (direction > 0 ? 1.08 : 1 / 1.08)),
+                );
                 const mousePoint = {
                   x: (pointer.x - view.x) / oldScale,
                   y: (pointer.y - view.y) / oldScale,
@@ -544,10 +558,23 @@ export function StudioApp() {
               <Layer listening={false}>
                 <Rect x={-5000} y={-5000} width={10000} height={10000} fill="#0c0d0d" />
                 {gridLines.map((line) => (
-                  <Line key={line.key} points={line.points} stroke="#1d2120" strokeWidth={1 / view.scale} />
+                  <Line
+                    key={line.key}
+                    points={line.points}
+                    stroke="#1d2120"
+                    strokeWidth={1 / view.scale}
+                  />
                 ))}
-                <Line points={[-5000, 0, 5000, 0]} stroke="#303532" strokeWidth={1 / view.scale} />
-                <Line points={[0, -5000, 0, 5000]} stroke="#303532" strokeWidth={1 / view.scale} />
+                <Line
+                  points={[-5000, 0, 5000, 0]}
+                  stroke="#303532"
+                  strokeWidth={1 / view.scale}
+                />
+                <Line
+                  points={[0, -5000, 0, 5000]}
+                  stroke="#303532"
+                  strokeWidth={1 / view.scale}
+                />
               </Layer>
 
               <Layer>
@@ -600,8 +627,15 @@ export function StudioApp() {
                         }
                       }}
                       onDragEnd={(event) => {
-                        const point = { x: Math.round(event.target.x()), y: Math.round(event.target.y()) };
-                        applyPayload({ kind: 'MoveEntity', entityId: location.id, position: point });
+                        const point = {
+                          x: Math.round(event.target.x()),
+                          y: Math.round(event.target.y()),
+                        };
+                        applyPayload({
+                          kind: 'MoveEntity',
+                          entityId: location.id,
+                          position: point,
+                        });
                       }}
                     >
                       <Circle
@@ -610,11 +644,7 @@ export function StudioApp() {
                         stroke="#0c0d0d"
                         strokeWidth={3 / view.scale}
                       />
-                      <Circle
-                        radius={4 / view.scale}
-                        fill="#0c0d0d"
-                        listening={false}
-                      />
+                      <Circle radius={4 / view.scale} fill="#0c0d0d" listening={false} />
                       <Text
                         text={location.name}
                         x={18 / view.scale}
@@ -665,7 +695,12 @@ export function StudioApp() {
                     <input
                       key={`${selectedEntity.id}-name-${selectedEntity.name}`}
                       defaultValue={selectedEntity.name}
-                      onBlur={(event) => updateSelectedProperty('name', event.currentTarget.value.trim() || selectedEntity.name)}
+                      onBlur={(event) =>
+                        updateSelectedProperty(
+                          'name',
+                          event.currentTarget.value.trim() || selectedEntity.name,
+                        )
+                      }
                     />
                   </label>
                   <label className="field">
@@ -674,7 +709,10 @@ export function StudioApp() {
                       key={`${selectedEntity.id}-kind-${selectedEntity.locationKind}`}
                       defaultValue={selectedEntity.locationKind}
                       onBlur={(event) =>
-                        updateSelectedProperty('locationKind', event.currentTarget.value.trim() || selectedEntity.locationKind)
+                        updateSelectedProperty(
+                          'locationKind',
+                          event.currentTarget.value.trim() || selectedEntity.locationKind,
+                        )
                       }
                     />
                   </label>
@@ -699,7 +737,10 @@ export function StudioApp() {
                       key={`${selectedEntity.id}-route-kind-${selectedEntity.routeKind}`}
                       defaultValue={selectedEntity.routeKind}
                       onBlur={(event) =>
-                        updateSelectedProperty('routeKind', event.currentTarget.value.trim() || selectedEntity.routeKind)
+                        updateSelectedProperty(
+                          'routeKind',
+                          event.currentTarget.value.trim() || selectedEntity.routeKind,
+                        )
                       }
                     />
                   </label>
