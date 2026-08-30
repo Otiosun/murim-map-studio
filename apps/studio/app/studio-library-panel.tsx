@@ -1,7 +1,13 @@
 'use client';
 
 import type { AssetManifest, TemplateEntity } from '@murim/domain';
-import { BUILT_IN_TEMPLATES, searchStudioAssets } from '../lib/studio-assets';
+import { useState } from 'react';
+import {
+  BUILT_IN_TEMPLATES,
+  prepareStudioAssetFile,
+  sanitizeStudioSvg,
+  searchStudioAssets,
+} from '../lib/studio-assets';
 
 export type StudioLibraryMode = 'assets' | 'templates';
 
@@ -45,6 +51,29 @@ function formatBytes(bytes: number): string {
   return `${value} KiB`;
 }
 
+function readRasterDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.addEventListener(
+      'load',
+      () => {
+        if (typeof reader.result === 'string') {
+          resolve(reader.result);
+          return;
+        }
+        reject(new Error('O navegador não conseguiu preparar o preview do asset.'));
+      },
+      { once: true },
+    );
+    reader.addEventListener(
+      'error',
+      () => reject(reader.error ?? new Error('Falha ao ler o asset local.')),
+      { once: true },
+    );
+    reader.readAsDataURL(file);
+  });
+}
+
 export function StudioLibraryPanel({
   mode,
   query,
@@ -60,8 +89,53 @@ export function StudioLibraryPanel({
   onConfirmImport,
   onClose,
 }: StudioLibraryPanelProps) {
+  const [localImportDraft, setLocalImportDraft] = useState<StudioAssetImportDraft | undefined>();
+  const [localImportError, setLocalImportError] = useState<string | undefined>();
+  const [preparingImport, setPreparingImport] = useState(false);
   const assets = searchStudioAssets(query);
   const templates = BUILT_IN_TEMPLATES.filter((template) => matchesTemplate(template, query));
+  const activeImportDraft = importDraft ?? localImportDraft;
+  const activeImportError = importError ?? localImportError;
+
+  async function prepareSelectedFile(file: File) {
+    onImportFile?.(file);
+    setPreparingImport(true);
+    setLocalImportDraft(undefined);
+    setLocalImportError(undefined);
+
+    try {
+      const { default: DOMPurify } = await import('dompurify');
+      const result = await prepareStudioAssetFile(file, {
+        sanitizeSvg: (markup) => sanitizeStudioSvg(markup, DOMPurify),
+        readRasterDataUrl,
+      });
+
+      if (!result.ok) {
+        setLocalImportError(result.message);
+        return;
+      }
+
+      setLocalImportDraft({
+        fileName: result.fileName,
+        mediaType: result.mediaType,
+        size: result.size,
+        previewSource: result.previewSource,
+        sanitized: result.sanitized,
+      });
+    } catch (error) {
+      setLocalImportError(
+        error instanceof Error ? error.message : 'Falha inesperada ao preparar o asset.',
+      );
+    } finally {
+      setPreparingImport(false);
+    }
+  }
+
+  function cancelImport() {
+    setLocalImportDraft(undefined);
+    setLocalImportError(undefined);
+    onCancelImport?.();
+  }
 
   return (
     <section
@@ -96,45 +170,56 @@ export function StudioLibraryPanel({
         <>
           <label className="library-import">
             <span>
-              <strong>Importar asset</strong>
+              <strong>{preparingImport ? 'Preparando preview…' : 'Importar asset'}</strong>
               <small>SVG, WebP ou PNG · máximo 2 MiB</small>
             </span>
             <input
               type="file"
               accept="image/svg+xml,image/webp,image/png"
+              disabled={preparingImport}
               onChange={(event) => {
                 const file = event.currentTarget.files?.item(0);
-                if (file) onImportFile?.(file);
+                if (file) void prepareSelectedFile(file);
                 event.currentTarget.value = '';
               }}
             />
           </label>
 
-          {importError ? (
+          {activeImportError ? (
             <p className="library-import-error" role="alert">
-              {importError}
+              {activeImportError}
             </p>
           ) : null}
 
-          {importDraft ? (
+          {activeImportDraft ? (
             <section className="library-import-preview" aria-label="Preview do asset importado">
               <div className="library-import-preview-main">
                 <span className="asset-preview import-preview">
-                  <img src={importDraft.previewSource} alt="" />
+                  <img src={activeImportDraft.previewSource} alt="" />
                 </span>
                 <span>
-                  <strong>{importDraft.fileName}</strong>
+                  <strong>{activeImportDraft.fileName}</strong>
                   <small>
-                    {formatBytes(importDraft.size)} ·{' '}
-                    {importDraft.sanitized ? 'SVG sanitizado' : importDraft.mediaType}
+                    {formatBytes(activeImportDraft.size)} ·{' '}
+                    {activeImportDraft.sanitized ? 'SVG sanitizado' : activeImportDraft.mediaType}
                   </small>
                 </span>
               </div>
               <div className="library-import-actions">
-                <button type="button" className="button ghost" onClick={onCancelImport}>
+                <button type="button" className="button ghost" onClick={cancelImport}>
                   Cancelar
                 </button>
-                <button type="button" className="button" onClick={onConfirmImport}>
+                <button
+                  type="button"
+                  className="button"
+                  disabled={!onConfirmImport}
+                  onClick={onConfirmImport}
+                  title={
+                    onConfirmImport
+                      ? undefined
+                      : 'A persistência segura do asset ainda não está ligada ao servidor.'
+                  }
+                >
                   Confirmar importação
                 </button>
               </div>
