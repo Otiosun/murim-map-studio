@@ -5,7 +5,8 @@ const config = readFileSync('supabase/config.toml', 'utf8');
 const template = readFileSync('supabase/templates/magic-link.html', 'utf8');
 
 function section(name: string): string {
-  const match = config.match(new RegExp(`\\[${name.replace('.', '\\.') }\\]([\\s\\S]*?)(?=\\n\\[|$)`));
+  const escapedName = name.replace('.', '\\.');
+  const match = config.match(new RegExp(`\\[${escapedName}\\]([\\s\\S]*?)(?=\\n\\[|$)`));
   return match?.[1] ?? '';
 }
 
