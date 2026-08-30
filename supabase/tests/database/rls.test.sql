@@ -61,28 +61,16 @@ select hasnt_column(
   'player projection exposes no secret payload column'
 );
 
-select results_eq(
-  $$
-    select enum_value
-    from (
-      select enumlabel::text as enum_value, enumsortorder
-      from pg_enum
-      join pg_type on pg_type.oid = pg_enum.enumtypid
-      join pg_namespace on pg_namespace.oid = pg_type.typnamespace
-      where pg_namespace.nspname = 'world_private'
-        and pg_type.typname = 'knowledge_state'
-    ) values_with_order
-    order by enumsortorder
-  $$,
-  $$
-    values
-      ('rumor'::text),
-      ('indication'::text),
-      ('localized'::text),
-      ('confirmed'::text),
-      ('investigated'::text),
-      ('understood'::text)
-  $$,
+select is(
+  (
+    select to_jsonb(array_agg(enumlabel::text order by enumsortorder))
+    from pg_enum
+    join pg_type on pg_type.oid = pg_enum.enumtypid
+    join pg_namespace on pg_namespace.oid = pg_type.typnamespace
+    where pg_namespace.nspname = 'world_private'
+      and pg_type.typname = 'knowledge_state'
+  ),
+  '["rumor","indication","localized","confirmed","investigated","understood"]'::jsonb,
   'database knowledge states match the canonical domain grammar'
 );
 
