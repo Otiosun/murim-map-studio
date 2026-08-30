@@ -1,4 +1,5 @@
 import {
+  assertPlayerProjectionSafe,
   buildPlayerMapProjection,
   type MapProjection,
   type PlayerProjectionNodeInput,
@@ -241,7 +242,7 @@ export function createSupabasePlayerProjectionSource(
         playerId,
       );
 
-      return parseMapProjection(
+      const projection = parseMapProjection(
         buildPlayerMapProjection({
           mapKey: PLAYER_MAP_KEY,
           generatedAt: now(),
@@ -249,6 +250,8 @@ export function createSupabasePlayerProjectionSource(
           routes: routeRows.map((row) => parseRoute(row, playerId)),
         }),
       );
+      assertPlayerProjectionSafe(projection);
+      return projection;
     },
   };
 }
