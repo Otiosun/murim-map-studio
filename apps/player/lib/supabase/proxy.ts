@@ -9,14 +9,10 @@ interface PlayerProxyAuthClient {
   };
 }
 
-export type PlayerProxyClientFactory = (
-  cookies: CookieMethodsServer,
-) => PlayerProxyAuthClient;
+export type PlayerProxyClientFactory = (cookies: CookieMethodsServer) => PlayerProxyAuthClient;
 
 export function createPlayerSessionUpdater(createClient: PlayerProxyClientFactory) {
-  return async function updatePlayerSession(
-    request: NextRequest,
-  ): Promise<NextResponse> {
+  return async function updatePlayerSession(request: NextRequest): Promise<NextResponse> {
     let response = NextResponse.next({ request });
     const client = createClient({
       getAll: () => request.cookies.getAll(),
@@ -41,15 +37,12 @@ export function createPlayerSessionUpdater(createClient: PlayerProxyClientFactor
   };
 }
 
-export async function updatePlayerSession(
-  request: NextRequest,
-): Promise<NextResponse> {
+export async function updatePlayerSession(request: NextRequest): Promise<NextResponse> {
   const env = readPlayerSupabaseEnv(process.env);
-  const updater = createPlayerSessionUpdater(
-    (cookies): SupabaseClient =>
-      createServerClient(env.url, env.publishableKey, {
-        cookies,
-      }),
+  const updater = createPlayerSessionUpdater((cookies): SupabaseClient =>
+    createServerClient(env.url, env.publishableKey, {
+      cookies,
+    }),
   );
 
   return updater(request);
