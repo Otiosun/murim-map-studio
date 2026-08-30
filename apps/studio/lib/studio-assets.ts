@@ -249,4 +249,21 @@ export function searchStudioAssets(query: string): AssetManifest[] {
   return searchAssetManifests(BUILT_IN_ASSET_MANIFESTS, query);
 }
 
-export function prepareStudioAssetImport(): void {}
+export interface StudioAssetImportInput {
+  fileName: string;
+  mediaType: string;
+  size: number;
+  content: string;
+}
+
+export function prepareStudioAssetImport(input: StudioAssetImportInput) {
+  if (!['image/svg+xml', 'image/webp', 'image/png'].includes(input.mediaType)) {
+    return {
+      ok: false as const,
+      code: 'unsupported-media-type' as const,
+      message: 'Use SVG, WebP ou PNG.',
+    };
+  }
+
+  return undefined;
+}
