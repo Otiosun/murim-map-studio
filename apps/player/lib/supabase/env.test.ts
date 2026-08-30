@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-// @ts-expect-error RED: env module is intentionally absent until the Task 2 implementation.
 import { readPlayerSupabaseEnv } from './env';
 
 describe('readPlayerSupabaseEnv', () => {
