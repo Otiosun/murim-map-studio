@@ -7,6 +7,7 @@ describe('player OTP auth helpers', () => {
     expect(normalizeLoginEmail('  Player@Example.COM  ')).toBe('player@example.com');
     expect(normalizeLoginEmail('invalid-email')).toBeNull();
     expect(normalizeLoginEmail('player@')).toBeNull();
+    expect(normalizeLoginEmail('   ')).toBeNull();
     expect(normalizeLoginEmail(null)).toBeNull();
   });
 
