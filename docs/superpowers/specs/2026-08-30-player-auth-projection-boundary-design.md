@@ -1,6 +1,6 @@
 # Player Auth + Projection Boundary 8B — Design
 
-**Status:** aprovado para planejamento em 30/08/2026  
+**Status:** aguardando revisão escrita do usuário  
 **Base canônica:** `foundation/player-knowledge-v0` @ `3c936d3ac981b453d55343d24aec0ba25d541cf1`  
 **Escopo:** Fase 8B — identidade/autenticação real do jogador + boundary server-side de `MapProjection`
 
@@ -21,6 +21,7 @@ Este corte não implementa o renderer final do mapa. Ele estabelece a fronteira 
 - O resto da aplicação não depende diretamente de Supabase Auth. Existe um boundary nosso `PlayerSession`.
 - V0 usa `playerId = JWT sub` somente dentro do adapter Supabase. Essa equivalência não faz parte do contrato público e pode ser substituída no futuro por tabela de vínculo sem alterar consumidores.
 - O player app não recebe `service_role`, não consulta `world_private` e não monta autorização no browser.
+- O 8B não cria cliente Supabase browser-side: OTP request/verify são Server Actions e a projeção chega por endpoint nosso.
 - O endpoint player-facing não aceita `playerId`, `ownerUserId`, canonical ID ou world ID fornecidos pelo cliente.
 - A leitura usa o cliente SSR autenticado + RLS existente em `player_api`, com filtro explícito pelo `playerId` validado como defesa adicional.
 - A resposta é novamente validada pelo schema estrito de `MapProjection` antes de sair do servidor.
@@ -60,7 +61,7 @@ Enquanto não houver UI ADM de convite, criação/autorização de usuários é 
 
 ### 4.3 Renovação de sessão
 
-O app usa o padrão oficial de Proxy do Next.js/Supabase SSR para atualizar cookies de sessão. O Proxy usa `getClaims()` para validar/renovar identidade e não `getSession()` como autorização.
+O app usa o padrão oficial de Proxy do Next.js/Supabase SSR para manter cookies de sessão atualizados. O Proxy chama `getClaims()` para validar identidade e nunca usa `getSession()` como autorização.
 
 ### 4.4 Logout
 
@@ -124,12 +125,16 @@ Jogador autenticado e autorizado sem conhecimento projetado recebe `200` com `Ma
 
 O ambiente local versionado deve espelhar a política do produto:
 
+- `auth.site_url = "http://127.0.0.1:3001"`;
+- `auth.additional_redirect_urls` inclui `http://127.0.0.1:3001` e `http://localhost:3001`;
 - `auth.enable_signup = false`;
 - `auth.email.enable_signup = false`;
 - `auth.email.otp_length = 6`;
-- `auth.email.otp_expiry` permanece finito e explicitamente versionado;
-- template `magic_link` local usa `{{ .Token }}` como código, não depende de clique em link;
-- Mailpit/Inbucket local pode capturar os e-mails de desenvolvimento;
+- `auth.email.otp_expiry = 600` segundos;
+- `auth.email.max_frequency = "60s"`;
+- `inbucket.enabled = true` no ambiente local;
+- `[auth.email.template.magic_link]` aponta para `./supabase/templates/magic-link.html`;
+- o template `magic_link` usa `{{ .Token }}` como código, não depende de clique em link;
 - hosted/staging deve reproduzir a mesma política no Auth Dashboard antes de teste externo.
 
 Nenhuma credencial SMTP real entra no Git. SMTP próprio é requisito operacional antes de usuários externos, mas não é requisito técnico para fechar 8B.
@@ -148,14 +153,14 @@ Nenhuma credencial SMTP real entra no Git. SMTP próprio é requisito operaciona
 10. Projeção autenticada não pode ser armazenada em cache público/compartilhado.
 11. Geometry inválida causa falha fechada, nunca coerção silenciosa.
 12. Erros de OTP não permitem enumeração deliberada de contas pela copy da UI.
+13. Nenhum Client Component importa `@supabase/supabase-js` ou `@supabase/ssr` neste corte.
 
 ## 9. Estrutura de componentes
 
 Responsabilidades previstas:
 
 - `apps/player/lib/supabase/server.ts` — cliente SSR server-side baseado em cookies.
-- `apps/player/lib/supabase/client.ts` — cliente browser somente quando necessário; não possui autorização de domínio.
-- `apps/player/lib/supabase/proxy.ts` — renovação segura da sessão.
+- `apps/player/lib/supabase/proxy.ts` — manutenção segura da sessão no request/response.
 - `apps/player/proxy.ts` — integração Next.js Proxy/matcher.
 - `apps/player/lib/auth/player-session.ts` — contrato `PlayerSession` e resolver provider-neutral.
 - `apps/player/lib/auth/supabase-player-session.ts` — adapter Supabase `getClaims() -> PlayerSession`.
@@ -189,7 +194,8 @@ Logs detalhados de produção/observabilidade estruturada continuam para Fase 10
 - parser de rows aceita known/ghost válidos e rejeita geometry inválida;
 - handler não aceita identidade por query/body;
 - projection response passa schema + anti-leak guard;
-- headers de cache são privados/no-store.
+- headers de cache são privados/no-store;
+- Client Components não são necessários para autenticação/autorização Supabase neste corte.
 
 ### Integração/segurança
 
