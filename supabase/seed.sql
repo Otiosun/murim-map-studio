@@ -120,6 +120,7 @@ insert into world_private.player_location_knowledge (
   origin_kind,
   origin_label,
   approximate_geom,
+  approximate_radius,
   learned_at,
   refreshed_at
 )
@@ -133,6 +134,7 @@ values
     'personal-exploration',
     'arrival',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
+    null,
     '2026-08-29T12:00:00Z',
     '2026-08-29T12:00:00Z'
   ),
@@ -145,6 +147,7 @@ values
     'npc-rumor',
     'mercador desconhecido',
     extensions.st_setsrid(extensions.st_makepoint(820, 860), 0),
+    180,
     '2026-08-29T13:00:00Z',
     '2026-08-29T13:00:00Z'
   ),
@@ -157,6 +160,7 @@ values
     'shared-map',
     'contato confiável',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
+    null,
     '2026-08-29T12:30:00Z',
     '2026-08-29T12:30:00Z'
   ),
@@ -169,6 +173,7 @@ values
     'personal-exploration',
     'investigação própria',
     extensions.st_setsrid(extensions.st_makepoint(900, 900), 0),
+    null,
     '2026-08-29T14:00:00Z',
     '2026-08-29T15:00:00Z'
   );
@@ -181,7 +186,9 @@ insert into player_api.map_nodes (
   label,
   knowledge_state,
   confidence,
+  role,
   geom,
+  approximate_radius,
   details,
   updated_at
 )
@@ -193,7 +200,9 @@ values
     'Vila Qinghe',
     'confirmed',
     1.0,
+    'known',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
+    null,
     '{"source":"personal-exploration"}'::jsonb,
     '2026-08-29T12:00:00Z'
   ),
@@ -204,7 +213,9 @@ values
     'Rumor: presença incomum ao nordeste',
     'rumor',
     0.35,
+    'ghost',
     extensions.st_setsrid(extensions.st_makepoint(820, 860), 0),
+    180,
     '{"source":"npc-rumor","precision":"approximate"}'::jsonb,
     '2026-08-29T13:00:00Z'
   ),
@@ -215,7 +226,9 @@ values
     'Vila Qinghe',
     'confirmed',
     1.0,
+    'known',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
+    null,
     '{"source":"shared-map"}'::jsonb,
     '2026-08-29T12:30:00Z'
   ),
@@ -226,7 +239,9 @@ values
     'Mosteiro Sob as Raízes',
     'investigated',
     0.95,
+    'known',
     extensions.st_setsrid(extensions.st_makepoint(900, 900), 0),
+    null,
     '{"source":"personal-exploration","precision":"confirmed"}'::jsonb,
     '2026-08-29T15:00:00Z'
   );
