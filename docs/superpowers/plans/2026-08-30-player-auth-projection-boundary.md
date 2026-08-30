@@ -32,6 +32,7 @@
 ### Task 1: Pin Supabase SSR dependencies and local invite-only OTP configuration
 
 **Files:**
+
 - Modify: `apps/player/package.json`
 - Modify: `pnpm-lock.yaml`
 - Modify: `.env.example`
@@ -40,6 +41,7 @@
 - Create: `apps/player/lib/auth/auth-config.test.ts`
 
 **Interfaces:**
+
 - Consumes: existing Supabase local project and `apps/player` Next.js app.
 - Produces: reproducible SSR Auth dependencies and local Auth configuration used by Tasks 2–4.
 
@@ -157,6 +159,7 @@ git commit -m "feat: configure invite-only player OTP auth"
 ### Task 2: Create request-scoped Supabase SSR client and session-refresh Proxy
 
 **Files:**
+
 - Create: `apps/player/lib/supabase/env.ts`
 - Create: `apps/player/lib/supabase/server.ts`
 - Create: `apps/player/lib/supabase/proxy.ts`
@@ -164,6 +167,7 @@ git commit -m "feat: configure invite-only player OTP auth"
 - Create: `apps/player/lib/supabase/proxy.test.ts`
 
 **Interfaces:**
+
 - Consumes: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY`, Next.js cookies/request APIs.
 - Produces: `createPlayerSupabaseServerClient()` and `updatePlayerSession(request)`.
 
@@ -231,6 +235,7 @@ export async function updatePlayerSession(request: NextRequest): Promise<NextRes
 ```
 
 Rules:
+
 - create `NextResponse.next({ request })`;
 - build a request-scoped server client from request cookies;
 - propagate all `setAll` cookies and cache headers to the same response;
@@ -261,11 +266,13 @@ git commit -m "feat: add player Supabase SSR session boundary"
 ### Task 3: Add provider-neutral `PlayerSession` and Supabase claims adapter
 
 **Files:**
+
 - Create: `apps/player/lib/auth/player-session.ts`
 - Create: `apps/player/lib/auth/supabase-player-session.ts`
 - Create: `apps/player/lib/auth/player-session.test.ts`
 
 **Interfaces:**
+
 - Consumes: a minimal auth client with `auth.getClaims()`.
 - Produces:
 
@@ -337,6 +344,7 @@ git commit -m "feat: add provider-neutral player session"
 ### Task 4: Implement invite-only email OTP request, verification, login UI, and logout
 
 **Files:**
+
 - Create: `apps/player/lib/auth/otp.ts`
 - Create: `apps/player/lib/auth/otp.test.ts`
 - Create: `apps/player/app/login/actions.ts`
@@ -346,6 +354,7 @@ git commit -m "feat: add provider-neutral player session"
 - Modify: `apps/player/app/page.tsx`
 
 **Interfaces:**
+
 - Consumes: `createPlayerSupabaseServerClient()`.
 - Produces:
 
@@ -359,6 +368,7 @@ export async function verifyOtp(...): Promise<LoginActionState>;
 - [ ] **Step 1: Write RED tests for input/security behavior**
 
 `otp.test.ts` must prove:
+
 - e-mail is trimmed/lowercased and invalid formats return `null`;
 - OTP accepts only `/^\d{6}$/`;
 - request adapter always receives `{ shouldCreateUser: false }`;
@@ -410,6 +420,7 @@ On success, `redirect('/')` after `revalidatePath('/', 'layout')`.
 - [ ] **Step 5: Implement login page without browser Supabase client**
 
 The page submits only to Server Actions. It has:
+
 - e-mail step;
 - six-digit `inputMode="numeric"` code step after `code-sent`;
 - resend action routed through the same request action;
@@ -447,6 +458,7 @@ git commit -m "feat: add invite-only player OTP flow"
 ### Task 5: Build fail-closed player projection source and authenticated endpoint
 
 **Files:**
+
 - Modify: `apps/player/package.json`
 - Create: `apps/player/lib/map/player-projection-source.ts`
 - Create: `apps/player/lib/map/player-projection-source.test.ts`
@@ -454,6 +466,7 @@ git commit -m "feat: add invite-only player OTP flow"
 - Create: `apps/player/app/api/map-projection/route.test.ts`
 
 **Interfaces:**
+
 - Consumes: `PlayerSession`, authenticated SSR Supabase client, `buildPlayerMapProjection` and strict projection schema/guard from `@murim/map-renderer`.
 - Produces:
 
@@ -462,7 +475,9 @@ export interface PlayerProjectionSource {
   load(playerId: string): Promise<MapProjection>;
 }
 
-export function createSupabasePlayerProjectionSource(client: PlayerApiClient): PlayerProjectionSource;
+export function createSupabasePlayerProjectionSource(
+  client: PlayerApiClient,
+): PlayerProjectionSource;
 ```
 
 and `GET /api/map-projection`.
@@ -480,6 +495,7 @@ If pnpm normalizes the workspace spec without an exact flag, retain the canonica
 - [ ] **Step 2: Write RED tests for row parsing**
 
 Use fixtures matching `player_api.map_nodes`/`map_routes`. Prove:
+
 - known node parses only with `approximate_radius = null`;
 - ghost node requires positive radius;
 - Point geometry must be finite x/y;
@@ -532,6 +548,7 @@ export function createMapProjectionGetHandler(deps: {
 ```
 
 Prove:
+
 - null session -> `401`;
 - successful session -> `200` + JSON projection;
 - `Cache-Control` exactly contains `private, no-store`;
@@ -564,18 +581,21 @@ git commit -m "feat: add authenticated player projection endpoint"
 ### Task 6: Prove invite-only Auth and A/B authorization against local Supabase
 
 **Files:**
+
 - Modify: `scripts/database-api-leakage-test.mjs`
 - Create: `scripts/player-auth-projection-test.mjs`
 - Modify: `.github/workflows/ci.yml`
 - Modify: `supabase/seed.sql` only if deterministic `auth.users` fixtures are necessary for the Auth API test; prefer Auth Admin creation inside the smoke script so application seed remains world-focused.
 
 **Interfaces:**
+
 - Consumes: local Supabase status env, Auth API, existing deterministic A/B player IDs, `player_api` RLS.
 - Produces: reproducible integration proof that actual authenticated identities cannot cross projections.
 
 - [ ] **Step 1: Write the integration smoke before wiring CI**
 
 `player-auth-projection-test.mjs` must:
+
 1. read `API_URL`, publishable/anon key, and local service/secret credential from `supabase status -o env` only inside CI/local test process;
 2. create or upsert two Auth users with exact IDs matching existing `PLAYER_A` and `PLAYER_B` fixtures, using admin APIs only inside the test script;
 3. authenticate or mint sessions through the local Auth server, not by passing an arbitrary owner ID to application code;
@@ -638,11 +658,13 @@ git commit -m "test: prove authenticated player projection isolation"
 ### Task 7: Final verification, checkpoint, and 8B PR evidence
 
 **Files:**
+
 - Create: `docs/PLAYER_AUTH_V0_STATUS.md`
 - Modify: `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md`
 - Modify: PR #10 body after evidence exists.
 
 **Interfaces:**
+
 - Consumes: completed Tasks 1–6.
 - Produces: auditable Gate 8B checkpoint; no product behavior change.
 
@@ -684,6 +706,7 @@ rg "createBrowserClient" apps/player
 ```
 
 Expected:
+
 - no server authorization call to `getSession()`;
 - no service/secret key in player app;
 - no `world_private` read in player app;
@@ -692,6 +715,7 @@ Expected:
 - [ ] **Step 4: Write checkpoint with exact evidence**
 
 `docs/PLAYER_AUTH_V0_STATUS.md` records:
+
 - final head SHA;
 - CI push and PR run IDs;
 - exact passing `quality`/`database` jobs;
