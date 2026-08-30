@@ -208,4 +208,43 @@ describe('buildPlayerMapProjection', () => {
       [],
     );
   });
+
+  test('keeps the authorized secret label out of Player A while revealing it to Player B', () => {
+    const playerASecret: PlayerProjectionNodeInput = {
+      projectionId: 'node-secret-a',
+      kind: 'monastery',
+      label: 'Hidden Monastery',
+      knowledgeState: 'rumor',
+      confidence: 0.3,
+      role: 'ghost',
+      position: { x: 820, y: 860 },
+      approximateRadius: 180,
+    };
+    const playerBSecret: PlayerProjectionNodeInput = {
+      projectionId: 'node-secret-b',
+      kind: 'monastery',
+      label: 'Hidden Monastery',
+      knowledgeState: 'investigated',
+      confidence: 0.95,
+      role: 'known',
+      position: { x: 900, y: 900 },
+    };
+
+    const playerAProjection = buildPlayerMapProjection({
+      mapKey: 'player-a:outer-ring',
+      generatedAt,
+      nodes: [village, playerASecret],
+      routes: [],
+    });
+    const playerBProjection = buildPlayerMapProjection({
+      mapKey: 'player-b:outer-ring',
+      generatedAt,
+      nodes: [village, playerBSecret],
+      routes: [],
+    });
+
+    expect(playerAProjection).not.toEqual(playerBProjection);
+    expect(JSON.stringify(playerAProjection)).not.toContain('Hidden Monastery');
+    expect(JSON.stringify(playerBProjection)).toContain('Hidden Monastery');
+  });
 });
