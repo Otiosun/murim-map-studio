@@ -1,5 +1,4 @@
 import { describe, expect, it, vi } from 'vitest';
-// @ts-expect-error RED: player session modules are intentionally absent until Task 3 implementation.
 import { createSupabasePlayerSessionResolver } from './supabase-player-session';
 
 const playerId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
