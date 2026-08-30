@@ -83,8 +83,10 @@ describe('studio asset import', () => {
   });
 
   it('builds SVG preview only from sanitizer output', () => {
-    const unsafe = '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><path d="M0 0h8v8z" /></svg>';
-    const clean = '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h8v8z" /></svg>';
+    const unsafe =
+      '<svg xmlns="http://www.w3.org/2000/svg"><script>alert(1)</script><path d="M0 0h8v8z" /></svg>';
+    const clean =
+      '<svg xmlns="http://www.w3.org/2000/svg"><path d="M0 0h8v8z" /></svg>';
 
     const result = prepareStudioAssetImport(
       {
