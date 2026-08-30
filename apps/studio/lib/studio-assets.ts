@@ -274,5 +274,17 @@ export function prepareStudioAssetImport(input: StudioAssetImportInput) {
     };
   }
 
+  if (input.mediaType === 'image/png' || input.mediaType === 'image/webp') {
+    return {
+      ok: true as const,
+      draft: true as const,
+      fileName: input.fileName,
+      mediaType: input.mediaType,
+      size: input.size,
+      previewSource: input.content,
+      sanitized: false as const,
+    };
+  }
+
   return undefined;
 }
