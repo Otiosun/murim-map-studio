@@ -2,6 +2,8 @@ import { redirect } from 'next/navigation';
 import { createSupabasePlayerSessionResolver } from '../lib/auth/supabase-player-session';
 import { createPlayerSupabaseServerClient } from '../lib/supabase/server';
 
+export const dynamic = 'force-dynamic';
+
 export default async function PlayerHome() {
   const supabase = await createPlayerSupabaseServerClient();
   const session = await createSupabasePlayerSessionResolver(supabase).resolve();
