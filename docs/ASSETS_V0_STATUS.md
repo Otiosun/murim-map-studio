@@ -1,8 +1,8 @@
 # Assets & Templates V0 status
 
-## Fase 7 — CANDIDATA A FECHAMENTO
+## Fase 7 — PASSOU TECNICAMENTE
 
-Checkpoint integrado após Gate 6 técnico. Este arquivo registra o estado candidato final; o Gate 7 só pode ser marcado como PASSOU depois do CI permanente read-only do head que contém este checkpoint.
+Checkpoint integrado após Gate 6 técnico. A Fase 7 está tecnicamente fechada; a publicação do preview atualizado ficou pendente exclusivamente por quota externa da Vercel Hobby, não por falha de código.
 
 ### Implementado
 
@@ -26,16 +26,21 @@ Checkpoint integrado após Gate 6 técnico. Este arquivo registra o estado candi
 - Canvas usa o asset escolhido como apresentação e mantém fallback sem símbolo.
 - Lockfile do workspace atualizado por pnpm pinado e validado.
 
-### Evidência pré-final
+### Evidência final
 
 - Testes cobrem AssetManifest, busca, validação de MIME/extensão/tamanho, sanitização SVG, preview raster, template com identidade nova e troca de visual preservando identidade semântica.
-- O RED do bucket demonstrou a regressão do seed para 25 MiB; após remover configuração de storage do seed, rebuild, testes RLS, smoke PostgREST e verificação de tipos passaram no run correspondente ao commit `c821f292794faf556190f1d75406b885e02d4a0e`.
-- Refactor do limite compartilhado foi validado por format, lint, typecheck, testes e build antes do commit `fa5ef5d7e4efff54d1a6d57a050a5ce8251d42b0`.
-- Workflow temporário de escrita do refactor foi removido no próprio commit final.
+- O RED do bucket demonstrou a regressão do seed para 25 MiB; a causa foi corrigida na fonte removendo configuração de schema/storage do seed.
+- CI permanente #222 passou integralmente em `quality` e `database` no head `c821f292794faf556190f1d75406b885e02d4a0e`: format, lint, typecheck, testes, build, rebuild de banco, pgTAP/RLS, smoke PostgREST e verificação de tipos gerados.
 - PR #8 continua draft contra `foundation/studio-v0`; não mergear ainda.
+
+### Preview Vercel
+
+- O preview V2 anterior continua disponível.
+- Uma tentativa de publicar o head final da Fase 7 foi bloqueada pela quota `api-deployments-free-per-day` do plano Hobby (100/100). Nenhum código precisa ser alterado por causa disso.
+- Assim que a quota resetar, publicar um preview a partir do SHA final da Fase 7 e fazer smoke HTTP/visual antes de promover qualquer endereço como atual.
 
 ### Gate 7
 
 Critério canônico: criar um local semanticamente correto, trocar seu asset sem mudar sua identidade e reutilizar templates sem duplicar lógica manual.
 
-Status neste checkpoint: **aguardando apenas CI permanente final do head limpo**.
+**Status: PASSOU TECNICAMENTE.**
