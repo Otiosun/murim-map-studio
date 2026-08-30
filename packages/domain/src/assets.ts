@@ -24,6 +24,11 @@ export interface AssetManifest {
   license?: string;
 }
 
+export interface AssetManifestMetadata {
+  attribution?: string;
+  license?: string;
+}
+
 function normalizeSearchToken(value: string): string {
   return value.trim().toLocaleLowerCase('pt-BR');
 }
@@ -47,6 +52,7 @@ export function assetEntityToManifest(
   entity: AssetEntity,
   mediaType: AssetMediaType,
   kind: AssetKind,
+  metadata: AssetManifestMetadata = {},
 ): AssetManifest {
   return {
     schemaVersion: 1,
@@ -61,7 +67,7 @@ export function assetEntityToManifest(
     ...(entity.dimensions ? { dimensions: { ...entity.dimensions } } : {}),
     ...(entity.anchor ? { anchor: { ...entity.anchor } } : {}),
     ...(entity.defaultSize ? { defaultSize: { ...entity.defaultSize } } : {}),
-    ...(entity.attribution ? { attribution: entity.attribution } : {}),
-    ...(entity.license ? { license: entity.license } : {}),
+    ...(metadata.attribution ? { attribution: metadata.attribution } : {}),
+    ...(metadata.license ? { license: metadata.license } : {}),
   };
 }
