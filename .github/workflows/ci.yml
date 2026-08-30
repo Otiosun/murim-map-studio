@@ -93,6 +93,9 @@ jobs:
       - name: PostgREST API leakage smoke
         run: node scripts/database-api-leakage-test.mjs
 
+      - name: Player Auth projection smoke
+        run: node scripts/player-auth-projection-test.mjs
+
       - name: Verify generated database types are current
         run: |
           set -euo pipefail
