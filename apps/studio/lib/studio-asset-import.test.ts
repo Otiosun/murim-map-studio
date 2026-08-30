@@ -44,4 +44,23 @@ describe('studio asset import', () => {
       message: 'O asset deve ter no máximo 2 MiB.',
     });
   });
+
+  it('prepares a supported raster asset as an uncommitted preview draft', () => {
+    const result = prepareStudioAssetImport({
+      fileName: 'village.png',
+      mediaType: 'image/png',
+      size: 128,
+      content: 'data:image/png;base64,AA==',
+    });
+
+    expect(result).toEqual({
+      ok: true,
+      draft: true,
+      fileName: 'village.png',
+      mediaType: 'image/png',
+      size: 128,
+      previewSource: 'data:image/png;base64,AA==',
+      sanitized: false,
+    });
+  });
 });
