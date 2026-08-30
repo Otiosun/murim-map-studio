@@ -19,9 +19,21 @@ type PrepareFile = (
   },
 ) => Promise<unknown>;
 
+type SanitizeSvg = (
+  markup: string,
+  purifier: {
+    sanitize: (
+      markup: string,
+      config: { USE_PROFILES: { svg: boolean; svgFilters: boolean } },
+    ) => string;
+  },
+) => string;
+
 const prepareStudioAssetImport = studioAssets.prepareStudioAssetImport as unknown as PrepareImport;
 const prepareStudioAssetFile = (studioAssets as unknown as { prepareStudioAssetFile?: PrepareFile })
   .prepareStudioAssetFile;
+const sanitizeStudioSvg = (studioAssets as unknown as { sanitizeStudioSvg?: SanitizeSvg })
+  .sanitizeStudioSvg;
 
 describe('studio asset import', () => {
   // SVG previews must be derived from sanitized markup only.
@@ -159,5 +171,21 @@ describe('studio asset import', () => {
       previewSource: `data:image/svg+xml;charset=utf-8,${encodeURIComponent(clean)}`,
       sanitized: true,
     });
+  });
+
+  it('runs the purifier with SVG-only profiles', () => {
+    expect(typeof sanitizeStudioSvg).toBe('function');
+    if (!sanitizeStudioSvg) return;
+
+    let receivedConfig: unknown;
+    const result = sanitizeStudioSvg('<svg><path /></svg>', {
+      sanitize: (_markup, config) => {
+        receivedConfig = config;
+        return '<svg><path /></svg>';
+      },
+    });
+
+    expect(receivedConfig).toEqual({ USE_PROFILES: { svg: true, svgFilters: true } });
+    expect(result).toBe('<svg><path /></svg>');
   });
 });
