@@ -5,7 +5,7 @@ const config = readFileSync('supabase/config.toml', 'utf8');
 const template = readFileSync('supabase/templates/magic-link.html', 'utf8');
 
 describe('player auth local configuration', () => {
-  it('is invite-only six-digit OTP with finite expiry', () => {
+  it('is invite-only six-digit OTP with 600-second expiry', () => {
     expect(config).toContain('site_url = "http://127.0.0.1:3001"');
     expect(config).toContain('enable_signup = false');
     expect(config).toContain('otp_length = 6');
