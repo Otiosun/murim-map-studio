@@ -37,7 +37,17 @@ function parseEnv(output) {
 async function readJson(response, context) {
   const text = await response.text();
   if (!response.ok) {
-    throw new Error(`${context} failed with HTTP ${response.status}`);
+    let errorCode = null;
+    try {
+      const parsed = JSON.parse(text);
+      if (typeof parsed?.error_code === 'string') {
+        errorCode = parsed.error_code;
+      }
+    } catch {
+      // Keep diagnostics deliberately body-free so auth tokens and user data never reach CI logs.
+    }
+    const suffix = errorCode === null ? '' : ` (${errorCode})`;
+    throw new Error(`${context} failed with HTTP ${response.status}${suffix}`);
   }
   return text ? JSON.parse(text) : null;
 }
@@ -70,6 +80,14 @@ async function recreateAuthUser(apiUrl, adminKey, user) {
   });
   const created = await readJson(response, `create auth user ${user.id}`);
   assert(created?.id === user.id, `Auth server did not preserve requested id ${user.id}`);
+  assert(
+    typeof created?.email_confirmed_at === 'string',
+    `Auth Admin created ${user.id} without a confirmed email`,
+  );
+  assert(
+    Array.isArray(created?.identities) && created.identities.length > 0,
+    `Auth Admin created ${user.id} without an email identity`,
+  );
 }
 
 async function authenticate(apiUrl, anonKey, user) {
