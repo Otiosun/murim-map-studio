@@ -176,7 +176,10 @@ assertLineString(
   ],
   'player A safe route',
 );
-assert(playerARoute.label === null, 'player A route unexpectedly exposes a canonical-derived label');
+assert(
+  playerARoute.label === null,
+  'player A route unexpectedly exposes a canonical-derived label',
+);
 assert(
   JSON.stringify(playerARoute.details) === '{}',
   'player A route details are not the empty safe object',
