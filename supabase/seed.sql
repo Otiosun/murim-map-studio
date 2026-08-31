@@ -203,7 +203,7 @@ values
     'known',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
     null,
-    '{"source":"personal-exploration"}'::jsonb,
+    '{"category":"Vila","summary":"Ponto de chegada e mercado conhecido pelo personagem."}'::jsonb,
     '2026-08-29T12:00:00Z'
   ),
   (
@@ -216,7 +216,7 @@ values
     'ghost',
     extensions.st_setsrid(extensions.st_makepoint(820, 860), 0),
     180,
-    '{"source":"npc-rumor","precision":"approximate"}'::jsonb,
+    '{}'::jsonb,
     '2026-08-29T13:00:00Z'
   ),
   (
@@ -229,7 +229,7 @@ values
     'known',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
     null,
-    '{"source":"shared-map"}'::jsonb,
+    '{"category":"Assentamento","summary":"Vila registrada em um mapa compartilhado confiável."}'::jsonb,
     '2026-08-29T12:30:00Z'
   ),
   (
@@ -242,7 +242,7 @@ values
     'known',
     extensions.st_setsrid(extensions.st_makepoint(900, 900), 0),
     null,
-    '{"source":"personal-exploration","precision":"confirmed"}'::jsonb,
+    '{"category":"Ruína investigada","summary":"Um mosteiro oculto que o personagem já investigou pessoalmente."}'::jsonb,
     '2026-08-29T15:00:00Z'
   );
 
