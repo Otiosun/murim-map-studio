@@ -1,9 +1,12 @@
 import {
   assertPlayerProjectionSafe,
   buildPlayerMapProjection,
+  PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH,
+  PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH,
   type MapProjection,
   type PlayerProjectionNodeInput,
   type PlayerProjectionRouteInput,
+  type ProjectionNodeDetail,
 } from '@murim/map-renderer';
 import { parseMapProjection } from '@murim/world-schema';
 
@@ -55,6 +58,49 @@ function isNonEmptyString(value: unknown): value is string {
 
 function isKnowledgeState(value: unknown): value is KnowledgeState {
   return typeof value === 'string' && (KNOWLEDGE_STATES as readonly string[]).includes(value);
+}
+
+function readNodeDetail(value: unknown): ProjectionNodeDetail | undefined {
+  if (!isRecord(value)) {
+    throw new Error('Invalid player map node detail');
+  }
+
+  const keys = Object.keys(value);
+  if (keys.some((key) => key !== 'category' && key !== 'summary')) {
+    throw new Error('Invalid player map node detail');
+  }
+
+  let category: string | undefined;
+  let summary: string | undefined;
+
+  if ('category' in value) {
+    if (typeof value.category !== 'string') {
+      throw new Error('Invalid player map node detail');
+    }
+    category = value.category.trim();
+    if (category.length < 1 || category.length > PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH) {
+      throw new Error('Invalid player map node detail');
+    }
+  }
+
+  if ('summary' in value) {
+    if (typeof value.summary !== 'string') {
+      throw new Error('Invalid player map node detail');
+    }
+    summary = value.summary.trim();
+    if (summary.length < 1 || summary.length > PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH) {
+      throw new Error('Invalid player map node detail');
+    }
+  }
+
+  if (category === undefined && summary === undefined) {
+    return undefined;
+  }
+
+  return {
+    ...(category === undefined ? {} : { category }),
+    ...(summary === undefined ? {} : { summary }),
+  };
 }
 
 function readPointGeometry(value: unknown): { x: number; y: number } | null {
@@ -113,6 +159,7 @@ function parseNode(row: unknown, playerId: string): PlayerProjectionNodeInput {
   const position = readPointGeometry(row.geom);
   const role = row.role;
   const confidence = row.confidence;
+  const detail = readNodeDetail(row.details);
 
   if (
     row.owner_user_id !== playerId ||
@@ -143,6 +190,7 @@ function parseNode(row: unknown, playerId: string): PlayerProjectionNodeInput {
       confidence,
       role,
       position,
+      ...(detail === undefined ? {} : { detail }),
     };
   }
 
@@ -163,6 +211,7 @@ function parseNode(row: unknown, playerId: string): PlayerProjectionNodeInput {
     role,
     position,
     approximateRadius: row.approximate_radius,
+    ...(detail === undefined ? {} : { detail }),
   };
 }
 
@@ -232,7 +281,7 @@ export function createSupabasePlayerProjectionSource(
       const nodeRows = await loadRows(
         client,
         'map_nodes',
-        'owner_user_id,projection_id,kind,label,knowledge_state,confidence,role,approximate_radius,geom,updated_at',
+        'owner_user_id,projection_id,kind,label,knowledge_state,confidence,role,approximate_radius,geom,details,updated_at',
         playerId,
       );
       const routeRows = await loadRows(
