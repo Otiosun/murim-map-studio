@@ -114,6 +114,52 @@ describe('buildPlayerMapProjection', () => {
     });
   });
 
+  test('copies only the supplied typed node detail into the projection', () => {
+    const projection = buildPlayerMapProjection({
+      mapKey: 'player-map',
+      generatedAt: '2026-08-31T18:00:00.000Z',
+      nodes: [
+        {
+          projectionId: 'node:known',
+          kind: 'settlement',
+          label: 'Vila Qinghe',
+          knowledgeState: 'confirmed',
+          confidence: 1,
+          role: 'known',
+          position: { x: 100, y: 120 },
+          detail: { category: 'Vila', summary: 'Um assentamento conhecido.' },
+        },
+      ],
+      routes: [],
+    });
+
+    expect(projection.items[0]).toMatchObject({
+      kind: 'node',
+      detail: { category: 'Vila', summary: 'Um assentamento conhecido.' },
+    });
+  });
+
+  test('does not synthesize detail when none is supplied', () => {
+    const projection = buildPlayerMapProjection({
+      mapKey: 'player-map',
+      generatedAt: '2026-08-31T18:00:00.000Z',
+      nodes: [
+        {
+          projectionId: 'node:known',
+          kind: 'settlement',
+          label: 'Vila Qinghe',
+          knowledgeState: 'confirmed',
+          confidence: 1,
+          role: 'known',
+          position: { x: 100, y: 120 },
+        },
+      ],
+      routes: [],
+    });
+
+    expect(projection.items[0]).not.toHaveProperty('detail');
+  });
+
   test('emits routes only when both projection-local endpoints exist', () => {
     const projection = buildPlayerMapProjection({
       mapKey: 'player-a:outer-ring',
