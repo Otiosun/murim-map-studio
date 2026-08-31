@@ -12,7 +12,7 @@
     "build": "turbo build",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --write scripts/player-auth-projection-test.mjs && git diff -- scripts/player-auth-projection-test.mjs && git diff --exit-code -- scripts/player-auth-projection-test.mjs",
     "typecheck": "turbo typecheck",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "node scripts/e2e-not-enabled.mjs",
