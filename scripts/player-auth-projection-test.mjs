@@ -241,7 +241,10 @@ assert(
   'player A received player B projection-local ID',
 );
 assert(!playerAJson.includes('under the north root'), 'player A received canonical secret payload');
-assert(!playerAJson.includes('unknown cultivators'), 'player A received canonical occupant payload');
+assert(
+  !playerAJson.includes('unknown cultivators'),
+  'player A received canonical occupant payload',
+);
 
 const forcedPlayerBResponse = await postgrestRequest(
   env.API_URL,
