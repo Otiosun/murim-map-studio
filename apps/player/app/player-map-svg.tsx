@@ -41,6 +41,7 @@ export function PlayerMapSvg({
         {routes.map((route) => (
           <polyline
             aria-hidden="true"
+            data-route-knowledge-state={route.knowledgeState}
             data-route-style={route.styleKey}
             fill="none"
             key={route.id}
