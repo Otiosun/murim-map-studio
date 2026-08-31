@@ -15,7 +15,7 @@ Este arquivo continua acompanhando o plano canônico em `docs/superpowers/plans/
 
 ## Gate 8B — Player Auth + Projection Boundary
 
-Implementação e prova funcional concluídas na branch `foundation/player-auth-v0`.
+Gate 8B está tecnicamente fechado na branch `foundation/player-auth-v0`.
 
 - Supabase Auth invite-only com e-mail + OTP numérico de 6 dígitos.
 - SSR/cookies e `PlayerSession` provider-neutral.
@@ -28,16 +28,53 @@ Implementação e prova funcional concluídas na branch `foundation/player-auth-
 - acesso anônimo a `player_api` é negado.
 - `world_private` permanece inacessível ao player.
 - 53 testes de banco/RLS verdes.
-- 110/110 testes unitários verdes.
 - tipos gerados do banco permanecem atuais.
 
-Evidência funcional do 8B:
+Evidência final do 8B:
 
-- head: `e79f195d959d49432af30dc5d63398963ece7567`;
-- CI run: `33342017902` (#416);
+- head documental final: `fd1f11ddf1771b9cc16dca68f2cf109c3b5ac435`;
+- CI final: run `33342293159` (#420);
 - job `quality`: SUCCESS;
-- job `database`: SUCCESS.
+- job `database`: SUCCESS;
+- PR #10: draft/open/unmerged.
 
 Checkpoint detalhado: `docs/PLAYER_AUTH_V0_STATUS.md`.
 
-O 8B está **implementation-complete**. O fechamento técnico definitivo depende somente de o commit documental deste checkpoint permanecer verde no CI permanente; depois disso a PR #10 deve receber a evidência final, continuar draft e permanecer sem merge.
+## Gate 8C — Player Renderer
+
+Implementação funcional concluída na branch `foundation/player-renderer-v0` sobre o boundary seguro do 8B.
+
+- renderer inicial em SVG/React server-side, conforme ADR-005;
+- `MapProjection` permanece como único contrato de entrada visual;
+- helper puro calcula viewport determinístico em world-units;
+- ghost nodes usam somente a posição aproximada e o raio de incerteza já autorizados;
+- routes, known nodes, ghost nodes e labels autorizados são renderizados sem consultar world truth;
+- empty state e projection unavailable state são tratados explicitamente;
+- falhas de projection source são sanitizadas antes da UI;
+- home autenticada usa exclusivamente `session.playerId` server-side;
+- nenhum Supabase browser client, service role, query de `world_private` ou identidade fornecida pela request foi introduzido;
+- CSS Foundation responsivo foi adicionado sem pan/zoom, detalhes interativos ou dependência gráfica nova;
+- 24 arquivos de testes / 122 testes unitários verdes no CI funcional;
+- 53 testes de banco/RLS, PostgREST leakage smoke e Auth A/B smoke verdes no CI funcional.
+
+Evidência funcional do 8C:
+
+- head funcional: `4be3b93765f69b6bb7a192ac482789375f2efefa`;
+- CI funcional: run `33356141753` (#446);
+- job `quality`: SUCCESS;
+- job `database`: SUCCESS.
+
+Checkpoint detalhado: `docs/PLAYER_RENDERER_V0_STATUS.md`.
+
+O 8C está **implementation-complete**. O fechamento técnico definitivo depende somente de o commit documental deste checkpoint permanecer verde no CI permanente. Depois disso, a PR do corte deve ser criada/atualizada como draft e permanecer sem merge.
+
+## Fase 8 — restante
+
+O fechamento de 8A, 8B e 8C não encerra o Gate 8 inteiro. Permanecem para cortes posteriores:
+
+- graus de conhecimento de rotas;
+- detalhe progressivo de nodes;
+- confiança, origem, frescor e privacidade em apresentação onde aplicável;
+- notas do jogador;
+- compartilhamento controlado de conhecimento;
+- interações mobile/touch e eventual pan/zoom.
