@@ -6,7 +6,9 @@ const PLAYER_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2';
 const CANONICAL_VILLAGE_ID = '20000000-0000-4000-8000-000000000001';
 const CANONICAL_SECRET_ID = '20000000-0000-4000-8000-000000000002';
 const CANONICAL_ROUTE_ID = '30000000-0000-4000-8000-000000000001';
+const PLAYER_A_VILLAGE_PROJECTION_ID = '91000000-0000-4000-8000-000000000001';
 const PLAYER_A_SECRET_PROJECTION_ID = '91000000-0000-4000-8000-000000000002';
+const PLAYER_B_VILLAGE_PROJECTION_ID = '92000000-0000-4000-8000-000000000001';
 const PLAYER_B_SECRET_PROJECTION_ID = '92000000-0000-4000-8000-000000000002';
 const PLAYER_A_ROUTE_PROJECTION_ID = '93000000-0000-4000-8000-000000000001';
 const PLAYER_B_ROUTE_PROJECTION_ID = '94000000-0000-4000-8000-000000000001';
@@ -100,6 +102,17 @@ function assertLineString(row, expectedCoordinates, context) {
   );
 }
 
+function assertDetail(row, expected, context) {
+  assert(row && typeof row.details === 'object' && row.details !== null, `${context} has no details`);
+  assert(
+    JSON.stringify(Object.keys(row.details).sort()) === JSON.stringify(Object.keys(expected).sort()),
+    `${context} has unexpected detail keys`,
+  );
+  for (const [key, value] of Object.entries(expected)) {
+    assert(row.details[key] === value, `${context} has unexpected ${key}`);
+  }
+}
+
 const env = parseEnv(
   execFileSync('pnpm', ['supabase', 'status', '-o', 'env'], {
     encoding: 'utf8',
@@ -123,6 +136,18 @@ const playerAResponse = await request(
 const playerARows = await readJson(playerAResponse, 'player A map projection');
 assert(playerARows.length === 2, `player A expected 2 rows, received ${playerARows.length}`);
 
+const playerAVillage = playerARows.find(
+  (row) => row.projection_id === PLAYER_A_VILLAGE_PROJECTION_ID,
+);
+assertDetail(
+  playerAVillage,
+  {
+    category: 'Vila',
+    summary: 'Ponto de chegada e mercado conhecido pelo personagem.',
+  },
+  'player A village detail',
+);
+
 const playerASecret = playerARows.find(
   (row) => row.projection_id === PLAYER_A_SECRET_PROJECTION_ID,
 );
@@ -132,6 +157,7 @@ assert(
   Number.isFinite(playerASecret.approximate_radius) && playerASecret.approximate_radius > 0,
   'player A ghost projection has no positive uncertainty radius',
 );
+assertDetail(playerASecret, {}, 'player A ghost detail');
 
 const playerAJson = JSON.stringify(playerARows);
 assert(!playerAJson.includes(SECRET_NAME), 'player A received the canonical secret location name');
@@ -144,6 +170,8 @@ assert(
   !playerAJson.includes(PLAYER_B_SECRET_PROJECTION_ID),
   'player A received player B projection-local ID',
 );
+assert(!playerAJson.includes('under the north root'), 'player A received canonical secret payload');
+assert(!playerAJson.includes('unknown cultivators'), 'player A received canonical secret occupants');
 assert(
   !('secret_payload' in playerARows[0]),
   'player projection unexpectedly exposes secret_payload',
@@ -266,6 +294,18 @@ const playerBResponse = await request(
 const playerBRows = await readJson(playerBResponse, 'player B map projection');
 assert(playerBRows.length === 2, `player B expected 2 rows, received ${playerBRows.length}`);
 
+const playerBVillage = playerBRows.find(
+  (row) => row.projection_id === PLAYER_B_VILLAGE_PROJECTION_ID,
+);
+assertDetail(
+  playerBVillage,
+  {
+    category: 'Assentamento',
+    summary: 'Vila registrada em um mapa compartilhado confiável.',
+  },
+  'player B village detail',
+);
+
 const playerBSecret = playerBRows.find(
   (row) => row.projection_id === PLAYER_B_SECRET_PROJECTION_ID,
 );
@@ -278,6 +318,14 @@ assert(
   playerBSecret.approximate_radius == null,
   'player B known projection unexpectedly retains an uncertainty radius',
 );
+assertDetail(
+  playerBSecret,
+  {
+    category: 'Ruína investigada',
+    summary: 'Um mosteiro oculto que o personagem já investigou pessoalmente.',
+  },
+  'player B secret detail',
+);
 
 const playerBJson = JSON.stringify(playerBRows);
 assert(playerAJson !== playerBJson, 'player A and player B unexpectedly received identical maps');
@@ -289,6 +337,8 @@ assert(
   !playerBJson.includes(PLAYER_A_SECRET_PROJECTION_ID),
   'player B received player A projection-local ID',
 );
+assert(!playerBJson.includes('under the north root'), 'player B received raw canonical secret payload');
+assert(!playerBJson.includes('unknown cultivators'), 'player B received raw canonical occupants payload');
 
 const playerBRouteResponse = await request(
   env.API_URL,
@@ -320,5 +370,5 @@ assert(
 );
 
 console.log(
-  'PostgREST leakage smoke passed: player A receives safe route topology while player B receives authorized exact route geometry.',
+  'PostgREST leakage smoke passed: A/B details stay player-specific while route precision remains authorized.',
 );
