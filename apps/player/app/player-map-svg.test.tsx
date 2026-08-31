@@ -1,10 +1,9 @@
-import type { KnowledgeState } from '@murim/domain';
 import type { MapProjection, ProjectionRoute } from '@murim/map-renderer';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { PlayerMapSvg } from './player-map-svg';
 
-const routeStates: KnowledgeState[] = [
+const routeStates: NonNullable<ProjectionRoute['knowledgeState']>[] = [
   'rumor',
   'indication',
   'localized',
