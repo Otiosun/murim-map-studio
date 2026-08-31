@@ -1,6 +1,10 @@
 import { z } from 'zod';
 import { ENTITY_TYPES, KNOWLEDGE_STATES, validateWorldDocument } from '@murim/domain';
 import type { WorldDocument, WorldEntity } from '@murim/domain';
+import {
+  PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH,
+  PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH,
+} from '@murim/map-renderer';
 import type { MapProjection } from '@murim/map-renderer';
 
 const entityIdSchema = z.uuid();
@@ -349,6 +353,13 @@ const projectionBaseShape = {
   metadata: jsonObjectSchema,
 };
 
+const projectionNodeDetailSchema = z
+  .object({
+    category: z.string().trim().min(1).max(PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH).optional(),
+    summary: z.string().trim().min(1).max(PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH).optional(),
+  })
+  .strict();
+
 const projectionNodeSchema = z
   .object({
     ...projectionBaseShape,
@@ -360,6 +371,7 @@ const projectionNodeSchema = z
     knowledgeState: z.enum(KNOWLEDGE_STATES).optional(),
     confidence: z.number().min(0).max(1).optional(),
     approximateLocation: approximateLocationSchema.optional(),
+    detail: projectionNodeDetailSchema.optional(),
   })
   .strict();
 
