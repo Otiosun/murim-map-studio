@@ -65,9 +65,13 @@ function assertLineString(row, expectedCoordinates, context) {
 }
 
 function assertDetail(row, expected, context) {
-  assert(row && typeof row.details === 'object' && row.details !== null, `${context} has no details`);
   assert(
-    JSON.stringify(Object.keys(row.details).sort()) === JSON.stringify(Object.keys(expected).sort()),
+    row && typeof row.details === 'object' && row.details !== null,
+    `${context} has no details`,
+  );
+  assert(
+    JSON.stringify(Object.keys(row.details).sort()) ===
+      JSON.stringify(Object.keys(expected).sort()),
     `${context} has unexpected detail keys`,
   );
   for (const [key, value] of Object.entries(expected)) {
@@ -340,8 +344,14 @@ assert(
   !playerBJson.includes(PLAYER_A_SECRET_PROJECTION_ID),
   'player B received player A projection-local ID',
 );
-assert(!playerBJson.includes('under the north root'), 'player B received raw canonical secret payload');
-assert(!playerBJson.includes('unknown cultivators'), 'player B received raw canonical occupant payload');
+assert(
+  !playerBJson.includes('under the north root'),
+  'player B received raw canonical secret payload',
+);
+assert(
+  !playerBJson.includes('unknown cultivators'),
+  'player B received raw canonical occupant payload',
+);
 
 const playerBRouteResponse = await postgrestRequest(
   env.API_URL,
