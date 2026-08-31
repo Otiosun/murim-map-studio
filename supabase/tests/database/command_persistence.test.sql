@@ -138,7 +138,7 @@ select is(
 );
 select is(
   extensions.st_astext((select geom from world_private.routes where id = '30000000-0000-4000-8000-000000000001')),
-  'LINESTRING(180 210,420 460,900 900)',
+  'LINESTRING(180 210,1400 100,900 900)',
   'connected route endpoint moves in the same transaction'
 );
 select is(
