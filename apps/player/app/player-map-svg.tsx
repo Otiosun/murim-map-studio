@@ -12,7 +12,6 @@ export interface PlayerMapSvgProps {
 
 const DEFAULT_ACCESSIBLE_NAME = 'Mapa de conhecimento do jogador';
 const NODE_RADIUS = 2;
-const NODE_INTERACTION_RADIUS = 6;
 const LABEL_OFFSET = 3;
 const NODE_DETAIL_PANEL_ID = 'player-node-detail-panel';
 
@@ -98,6 +97,7 @@ export function PlayerMapSvg({
               aria-pressed="false"
               data-node-id={node.id}
               data-node-role={node.role}
+              data-node-selected="false"
               data-player-node="true"
               key={node.id}
               role="button"
@@ -105,15 +105,19 @@ export function PlayerMapSvg({
             >
               <circle
                 aria-hidden="true"
+                className="player-node-hit-target"
                 cx={position.x}
                 cy={position.y}
+                data-node-hit-target="true"
                 data-node-interaction-target="true"
-                r={NODE_INTERACTION_RADIUS}
+                r={NODE_RADIUS}
+                vectorEffect="non-scaling-stroke"
               />
               <circle
                 aria-hidden="true"
                 cx={position.x}
                 cy={position.y}
+                data-node-marker="true"
                 data-node-role={node.role}
                 r={NODE_RADIUS}
               />
