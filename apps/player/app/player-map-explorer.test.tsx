@@ -2,7 +2,7 @@
 
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { PlayerNodeDetailView } from '../lib/map/player-node-detail-model';
 import { PlayerMapExplorer } from './player-map-explorer';
 
@@ -23,6 +23,11 @@ const nodes: PlayerNodeDetailView[] = [
     knowledgeState: 'rumor',
   },
 ];
+
+const reactTestGlobal = globalThis as typeof globalThis & {
+  IS_REACT_ACT_ENVIRONMENT?: boolean;
+};
+const previousActEnvironment = reactTestGlobal.IS_REACT_ACT_ENVIRONMENT;
 
 function MapMarkup() {
   return (
@@ -67,6 +72,18 @@ describe('PlayerMapExplorer', () => {
   let container: HTMLDivElement;
   let root: Root;
   let fetchSpy: ReturnType<typeof vi.fn>;
+
+  beforeAll(() => {
+    reactTestGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+  });
+
+  afterAll(() => {
+    if (previousActEnvironment === undefined) {
+      delete reactTestGlobal.IS_REACT_ACT_ENVIRONMENT;
+      return;
+    }
+    reactTestGlobal.IS_REACT_ACT_ENVIRONMENT = previousActEnvironment;
+  });
 
   beforeEach(() => {
     container = document.createElement('div');
@@ -121,8 +138,10 @@ describe('PlayerMapExplorer', () => {
     act(() => dispatchKey(node('node:known'), 'Enter'));
     expect(panel().textContent).toContain('Vila Qinghe');
 
-    const space = dispatchKey(node('node:ghost'), ' ');
-    act(() => undefined);
+    let space!: KeyboardEvent;
+    act(() => {
+      space = dispatchKey(node('node:ghost'), ' ');
+    });
 
     expect(space.defaultPrevented).toBe(true);
     expect(panel().textContent).toContain('Local não identificado');
