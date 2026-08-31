@@ -86,7 +86,9 @@ describe('player node detail view model', () => {
     expect(getPlayerNodeAccessibleName({ role: 'ghost' })).toBe(
       'Local não identificado, localização aproximada',
     );
-    expect(getPlayerNodeAccessibleName({ label: 'Vila Qinghe', role: 'known' })).toBe('Vila Qinghe');
+    expect(getPlayerNodeAccessibleName({ label: 'Vila Qinghe', role: 'known' })).toBe(
+      'Vila Qinghe',
+    );
   });
 
   it.each([
