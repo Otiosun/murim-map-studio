@@ -180,6 +180,10 @@ export type Database = {
           committed_revision: number;
         }[];
       };
+      refresh_player_route_projection_v1: {
+        Args: { p_owner_user_id: string; p_source_route_id: string };
+        Returns: undefined;
+      };
     };
     Enums: {
       [_ in never]: never;
@@ -344,6 +348,50 @@ export type Database = {
             columns: ['source_location_id'];
             isOneToOne: false;
             referencedRelation: 'locations';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
+      player_route_knowledge: {
+        Row: {
+          confidence: number;
+          learned_at: string;
+          origin_kind: string;
+          origin_label: string | null;
+          owner_user_id: string;
+          projection_id: string;
+          refreshed_at: string;
+          source_route_id: string;
+          state: Database['world_private']['Enums']['knowledge_state'];
+        };
+        Insert: {
+          confidence: number;
+          learned_at: string;
+          origin_kind: string;
+          origin_label?: string | null;
+          owner_user_id: string;
+          projection_id: string;
+          refreshed_at: string;
+          source_route_id: string;
+          state: Database['world_private']['Enums']['knowledge_state'];
+        };
+        Update: {
+          confidence?: number;
+          learned_at?: string;
+          origin_kind?: string;
+          origin_label?: string | null;
+          owner_user_id?: string;
+          projection_id?: string;
+          refreshed_at?: string;
+          source_route_id?: string;
+          state?: Database['world_private']['Enums']['knowledge_state'];
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'player_route_knowledge_source_route_id_fkey';
+            columns: ['source_route_id'];
+            isOneToOne: false;
+            referencedRelation: 'routes';
             referencedColumns: ['id'];
           },
         ];

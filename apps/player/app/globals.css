@@ -135,6 +135,38 @@ input {
   opacity: 0.55;
 }
 
+.player-map-svg [data-route-knowledge-state='rumor'] {
+  stroke-dasharray: 1 5;
+  opacity: 0.22;
+}
+
+.player-map-svg [data-route-knowledge-state='indication'] {
+  stroke-dasharray: 3 5;
+  opacity: 0.36;
+}
+
+.player-map-svg [data-route-knowledge-state='localized'] {
+  stroke-dasharray: 6 4;
+  opacity: 0.5;
+}
+
+.player-map-svg [data-route-knowledge-state='confirmed'] {
+  stroke-dasharray: none;
+  opacity: 0.65;
+}
+
+.player-map-svg [data-route-knowledge-state='investigated'] {
+  stroke-dasharray: none;
+  stroke-width: 1.5;
+  opacity: 0.78;
+}
+
+.player-map-svg [data-route-knowledge-state='understood'] {
+  stroke-dasharray: none;
+  stroke-width: 1.75;
+  opacity: 0.9;
+}
+
 .player-map-svg [data-node-role='known'] {
   fill: currentColor;
 }

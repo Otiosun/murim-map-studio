@@ -106,7 +106,7 @@ values (
   '20000000-0000-4000-8000-000000000001',
   '20000000-0000-4000-8000-000000000002',
   'Trilha Coberta',
-  extensions.st_geomfromtext('LINESTRING(100 120, 420 460, 900 900)', 0),
+  extensions.st_geomfromtext('LINESTRING(100 120, 1400 100, 900 900)', 0),
   '{"knownOnlyBy":"authorized knowledge"}'::jsonb
 );
 
@@ -243,5 +243,40 @@ values
     extensions.st_setsrid(extensions.st_makepoint(900, 900), 0),
     null,
     '{"source":"personal-exploration","precision":"confirmed"}'::jsonb,
+    '2026-08-29T15:00:00Z'
+  );
+
+insert into world_private.player_route_knowledge (
+  owner_user_id,
+  source_route_id,
+  projection_id,
+  state,
+  confidence,
+  origin_kind,
+  origin_label,
+  learned_at,
+  refreshed_at
+)
+values
+  (
+    'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
+    '30000000-0000-4000-8000-000000000001',
+    '93000000-0000-4000-8000-000000000001',
+    'indication',
+    0.45,
+    'npc-rumor',
+    'mercador desconhecido',
+    '2026-08-29T13:30:00Z',
+    '2026-08-29T13:30:00Z'
+  ),
+  (
+    'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
+    '30000000-0000-4000-8000-000000000001',
+    '94000000-0000-4000-8000-000000000001',
+    'investigated',
+    0.95,
+    'personal-exploration',
+    'investigação própria',
+    '2026-08-29T15:00:00Z',
     '2026-08-29T15:00:00Z'
   );

@@ -5,8 +5,11 @@ const PLAYER_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1';
 const PLAYER_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2';
 const CANONICAL_VILLAGE_ID = '20000000-0000-4000-8000-000000000001';
 const CANONICAL_SECRET_ID = '20000000-0000-4000-8000-000000000002';
+const CANONICAL_ROUTE_ID = '30000000-0000-4000-8000-000000000001';
 const PLAYER_A_SECRET_PROJECTION_ID = '91000000-0000-4000-8000-000000000002';
 const PLAYER_B_SECRET_PROJECTION_ID = '92000000-0000-4000-8000-000000000002';
+const PLAYER_A_ROUTE_PROJECTION_ID = '93000000-0000-4000-8000-000000000001';
+const PLAYER_B_ROUTE_PROJECTION_ID = '94000000-0000-4000-8000-000000000001';
 const SECRET_NAME = 'Mosteiro Sob as Raízes';
 
 function assert(condition, message) {
@@ -83,8 +86,18 @@ async function rpcRequest(apiUrl, anonKey, jwt, profile, functionName, body) {
 
 async function readJson(response, context) {
   const text = await response.text();
-  assert(response.ok, `${context} failed (${response.status}): ${text}`);
-  return JSON.parse(text);
+  if (!response.ok) {
+    throw new Error(`${context} failed with HTTP ${response.status}`);
+  }
+  return text ? JSON.parse(text) : null;
+}
+
+function assertLineString(row, expectedCoordinates, context) {
+  assert(row?.geom?.type === 'LineString', `${context} is not a LineString`);
+  assert(
+    JSON.stringify(row.geom.coordinates) === JSON.stringify(expectedCoordinates),
+    `${context} has unexpected coordinates`,
+  );
 }
 
 const env = parseEnv(
@@ -140,6 +153,47 @@ assert(
   'player projection unexpectedly exposes source_location_id',
 );
 
+const playerARouteResponse = await request(
+  env.API_URL,
+  env.ANON_KEY,
+  playerAJwt,
+  'player_api',
+  'map_routes?select=*&order=projection_id.asc',
+);
+const playerARoutes = await readJson(playerARouteResponse, 'player A route projection');
+assert(playerARoutes.length === 1, `player A expected 1 route, received ${playerARoutes.length}`);
+const playerARoute = playerARoutes[0];
+assert(
+  playerARoute.projection_id === PLAYER_A_ROUTE_PROJECTION_ID,
+  'player A received an unexpected route projection id',
+);
+assert(playerARoute.knowledge_state === 'indication', 'player A route state is not indication');
+assertLineString(
+  playerARoute,
+  [
+    [100, 120],
+    [820, 860],
+  ],
+  'player A safe route',
+);
+assert(
+  playerARoute.label === null,
+  'player A route unexpectedly exposes a canonical-derived label',
+);
+assert(
+  JSON.stringify(playerARoute.details) === '{}',
+  'player A route details are not the empty safe object',
+);
+const playerARouteJson = JSON.stringify(playerARoutes);
+assert(!playerARouteJson.includes(CANONICAL_ROUTE_ID), 'player A received the canonical route ID');
+assert(
+  !playerARouteJson.includes(PLAYER_B_ROUTE_PROJECTION_ID),
+  'player A received player B route projection ID',
+);
+assert(!playerARouteJson.includes('[1400,100]'), 'player A received the canonical route midpoint');
+assert(!('source_route_id' in playerARoute), 'player route unexpectedly exposes source_route_id');
+assert(!('secret_payload' in playerARoute), 'player route unexpectedly exposes secret_payload');
+
 const forbiddenColumnResponse = await request(
   env.API_URL,
   env.ANON_KEY,
@@ -150,6 +204,18 @@ const forbiddenColumnResponse = await request(
 assert(
   !forbiddenColumnResponse.ok,
   'player_api unexpectedly allows selecting a secret_payload column',
+);
+
+const forbiddenRouteColumnResponse = await request(
+  env.API_URL,
+  env.ANON_KEY,
+  playerAJwt,
+  'player_api',
+  'map_routes?select=source_route_id',
+);
+assert(
+  !forbiddenRouteColumnResponse.ok,
+  'player_api unexpectedly allows selecting source_route_id from routes',
 );
 
 const privateSchemaResponse = await request(
@@ -172,6 +238,22 @@ const forbiddenServerMutation = await rpcRequest(
 assert(
   !forbiddenServerMutation.ok,
   'authenticated player unexpectedly reached the trusted server mutation API',
+);
+
+const forbiddenRouteRefresh = await rpcRequest(
+  env.API_URL,
+  env.ANON_KEY,
+  playerAJwt,
+  'server_api',
+  'refresh_player_route_projection_v1',
+  {
+    p_owner_user_id: PLAYER_A,
+    p_source_route_id: CANONICAL_ROUTE_ID,
+  },
+);
+assert(
+  !forbiddenRouteRefresh.ok,
+  'authenticated player unexpectedly reached the route materialization API',
 );
 
 const playerBResponse = await request(
@@ -208,6 +290,35 @@ assert(
   'player B received player A projection-local ID',
 );
 
+const playerBRouteResponse = await request(
+  env.API_URL,
+  env.ANON_KEY,
+  playerBJwt,
+  'player_api',
+  'map_routes?select=*&order=projection_id.asc',
+);
+const playerBRoutes = await readJson(playerBRouteResponse, 'player B route projection');
+assert(playerBRoutes.length === 1, `player B expected 1 route, received ${playerBRoutes.length}`);
+const playerBRoute = playerBRoutes[0];
+assert(
+  playerBRoute.projection_id === PLAYER_B_ROUTE_PROJECTION_ID,
+  'player B received an unexpected route projection id',
+);
+assert(playerBRoute.knowledge_state === 'investigated', 'player B route state is not investigated');
+assertLineString(
+  playerBRoute,
+  [
+    [100, 120],
+    [1400, 100],
+    [900, 900],
+  ],
+  'player B exact route',
+);
+assert(
+  !JSON.stringify(playerBRoutes).includes(PLAYER_A_ROUTE_PROJECTION_ID),
+  'player B received player A route projection ID',
+);
+
 console.log(
-  'PostgREST leakage smoke passed: player A receives only the safe ghost while player B receives the authorized investigated location.',
+  'PostgREST leakage smoke passed: player A receives safe route topology while player B receives authorized exact route geometry.',
 );
