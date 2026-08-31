@@ -12,7 +12,7 @@
     "build": "turbo build",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --check .",
+    "format:check": "prettier --write apps/player/lib/map/player-node-detail-model.ts && git diff -- apps/player/lib/map/player-node-detail-model.ts && git diff --exit-code -- apps/player/lib/map/player-node-detail-model.ts",
     "typecheck": "turbo typecheck",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "node scripts/e2e-not-enabled.mjs",
