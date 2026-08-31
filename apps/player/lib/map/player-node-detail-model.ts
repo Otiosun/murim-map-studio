@@ -19,7 +19,9 @@ function copyNodeDetail(detail: ProjectionNodeDetail): ProjectionNodeDetail {
   };
 }
 
-export function buildPlayerNodeDetailViews(projection: MapProjection): PlayerNodeDetailView[] {
+export function buildPlayerNodeDetailViews(
+  projection: MapProjection,
+): PlayerNodeDetailView[] {
   return projection.items.flatMap((item) => {
     if (item.kind !== 'node') {
       return [];
@@ -30,14 +32,18 @@ export function buildPlayerNodeDetailViews(projection: MapProjection): PlayerNod
         id: item.id,
         ...(item.label === undefined ? {} : { label: item.label }),
         role: item.role,
-        ...(item.knowledgeState === undefined ? {} : { knowledgeState: item.knowledgeState }),
+        ...(item.knowledgeState === undefined
+          ? {}
+          : { knowledgeState: item.knowledgeState }),
         ...(item.detail === undefined ? {} : { detail: copyNodeDetail(item.detail) }),
       },
     ];
   });
 }
 
-export function getPlayerNodeDisplayName(node: Pick<PlayerNodeDetailView, 'label'>): string {
+export function getPlayerNodeDisplayName(
+  node: Pick<PlayerNodeDetailView, 'label'>,
+): string {
   return node.label ?? 'Local não identificado';
 }
 
