@@ -1,7 +1,41 @@
-import type { MapProjection } from '@murim/map-renderer';
+import type { KnowledgeState } from '@murim/domain';
+import type { MapProjection, ProjectionRoute } from '@murim/map-renderer';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { describe, expect, it } from 'vitest';
 import { PlayerMapSvg } from './player-map-svg';
+
+const routeStates: KnowledgeState[] = [
+  'rumor',
+  'indication',
+  'localized',
+  'confirmed',
+  'investigated',
+  'understood',
+];
+
+const routes: ProjectionRoute[] = routeStates.map((knowledgeState, index) => ({
+  id: `route:${knowledgeState}`,
+  kind: 'route',
+  metadata: {},
+  fromItemId: 'node:known',
+  toItemId: 'node:ghost',
+  styleKey: `route:${knowledgeState}`,
+  knowledgeState,
+  path: {
+    kind: 'polyline',
+    points:
+      knowledgeState === 'investigated'
+        ? [
+            { x: 10, y: 20 },
+            { x: 25, y: 5 },
+            { x: 40, y: 50 },
+          ]
+        : [
+            { x: 10, y: 20 + index },
+            { x: 40, y: 50 + index },
+          ],
+  },
+}));
 
 const projection: MapProjection = {
   projectionVersion: 1,
@@ -27,21 +61,7 @@ const projection: MapProjection = {
       position: { x: 40, y: 50 },
       approximateLocation: { center: { x: 40, y: 50 }, radius: 8 },
     },
-    {
-      id: 'route:r',
-      kind: 'route',
-      metadata: {},
-      fromItemId: 'node:known',
-      toItemId: 'node:ghost',
-      styleKey: 'route:rumor',
-      path: {
-        kind: 'polyline',
-        points: [
-          { x: 10, y: 20 },
-          { x: 40, y: 50 },
-        ],
-      },
-    },
+    ...routes,
   ],
 };
 
@@ -54,8 +74,21 @@ describe('PlayerMapSvg', () => {
     expect(html).toContain('data-node-role="known"');
     expect(html).toContain('data-node-role="ghost"');
     expect(html).toContain('data-uncertainty="true"');
-    expect(html).toContain('points="10,20 40,50"');
     expect(html).toContain('Vila');
+  });
+
+  it('exposes all six route knowledge states as presentation metadata', () => {
+    const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
+
+    for (const state of routeStates) {
+      expect(html).toContain(`data-route-knowledge-state="${state}"`);
+    }
+  });
+
+  it('renders the supplied route path exactly instead of reconstructing geometry', () => {
+    const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
+
+    expect(html).toContain('points="10,20 25,5 40,50"');
   });
 
   it('does not invent a label for unlabeled projection items', () => {
