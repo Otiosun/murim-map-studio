@@ -19,6 +19,14 @@ const forbiddenKeys = [
   'email',
 ] as const;
 
+const forbiddenDetailKeys = [
+  'canonicalId',
+  'sourceLocationId',
+  'worldId',
+  'ownerUserId',
+  'secretPayload',
+] as const;
+
 describe('assertPlayerProjectionSafe', () => {
   it('accepts deeply nested player-safe projection data', () => {
     expect(() =>
@@ -41,6 +49,17 @@ describe('assertPlayerProjectionSafe', () => {
     const tainted = {
       projectionVersion: 1,
       items: [{ metadata: { nested: { [key]: 'must-not-leak' } } }],
+    };
+
+    expect(() => assertPlayerProjectionSafe(tainted)).toThrow(
+      `Forbidden player projection key: ${key}`,
+    );
+  });
+
+  it.each(forbiddenDetailKeys)('rejects forbidden key %s inside player node detail', (key) => {
+    const tainted = {
+      projectionVersion: 1,
+      items: [{ kind: 'node', detail: { [key]: 'must-not-leak' } }],
     };
 
     expect(() => assertPlayerProjectionSafe(tainted)).toThrow(
