@@ -20,8 +20,8 @@
 - Missing player-facing endpoint projection suppresses the route entirely.
 - `player_api.map_routes` must be safe under direct PostgREST access; security cannot depend on React, CSS, API route composition, or browser behavior.
 - `world_private` stays unavailable to `anon` and `authenticated`; the route materialization routine is executable only by `service_role`.
-- Player-facing route materialization must not copy canonical `routes.name`, `payload`, `secret_payload`, source IDs, world IDs, or endpoint canonical IDs. Gate 8D V0 emits `label = null` and `details = '{}'::jsonb`; richer authorized route facts remain future scope.
-- Existing Gate 8B and 8C permanent checks stay green: RLS, PostgREST leakage smoke, real Auth A/B smoke, generated database types, all unit tests, build, lint, format, and typecheck.
+- Gate 8D V0 never derives a public route label/details payload from canonical `routes.name`, `payload`, or `secret_payload`: materialization writes `label = null` and `details = '{}'::jsonb`.
+- Existing Gate 8B/8C permanent checks remain mandatory: RLS, PostgREST leakage smoke, real Auth A/B smoke, generated DB type-drift check, all unit tests, build, lint, format, and typecheck.
 - No pan/zoom, node-detail UI, route editing, pathfinding, traversal simulation, uncertainty corridors, per-segment knowledge, Pixi/WebGPU, merge, or deploy in Gate 8D.
 
 ---
@@ -30,31 +30,28 @@
 
 ### New files
 
-- `supabase/migrations/20260831062000_player_route_knowledge_v0.sql` — private route-knowledge table and service-only route projection materializer.
-- `supabase/tests/database/player_route_knowledge.test.sql` — pgtap proof for low/high states, fallback, suppression, privileges, and A/B isolation.
-- `docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md` — final Gate 8D technical checkpoint after implementation evidence is green.
+- `supabase/migrations/20260831062000_player_route_knowledge_v0.sql` — private route-knowledge table and service-only safe materializer.
+- `supabase/tests/database/player_route_knowledge.test.sql` — pgtap proof for low/high state geometry, fallback, suppression, privileges, and A/B isolation.
+- `docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md` — final 8D checkpoint after remote evidence is green.
 
 ### Modified files
 
-- `supabase/seed.sql` — adversarial canonical route geometry, player A/B route knowledge fixtures, and materialized public route rows.
-- `supabase/database.types.ts` — regenerated schema types after the migration.
-- `scripts/database-api-leakage-test.mjs` — direct PostgREST proof that player A cannot retrieve canonical route geometry or B’s route row.
-- `scripts/player-auth-projection-test.mjs` — real Auth A/B route-isolation and geometry-precision assertions.
-- `packages/map-renderer/src/projection-safety.ts` — forbid route-specific canonical/source key aliases recursively.
-- `packages/map-renderer/src/projection-safety.test.ts` — TDD coverage for those route-specific forbidden keys.
-- `apps/player/app/player-map-svg.tsx` — expose route knowledge state as presentation metadata only.
-- `apps/player/app/player-map-svg.test.tsx` — assert renderer preserves supplied path and exposes each state without reconstructing geometry.
-- `apps/player/app/globals.css` — visual hierarchy for the six route knowledge states using existing SVG/currentColor system.
-- `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md` — append Gate 8D implementation/evidence without falsely closing Gate 8 overall.
+- `supabase/seed.sql` — adversarial canonical route fixture plus A/B route knowledge and materialization.
+- `supabase/database.types.ts` — regenerated schema types.
+- `scripts/database-api-leakage-test.mjs` — direct PostgREST route-leakage proof, including forbidden materializer RPC.
+- `scripts/player-auth-projection-test.mjs` — real Auth A/B route isolation.
+- `packages/map-renderer/src/projection-safety.ts` and `.test.ts` — route-specific canonical/source key aliases.
+- `apps/player/app/player-map-svg.tsx` and `.test.tsx` — presentation metadata only; supplied geometry remains untouched.
+- `apps/player/app/globals.css` — six-state route visual hierarchy.
+- `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md` — verified 8D progress only.
 
-No production change is planned for `apps/player/lib/map/player-projection-source.ts` or `packages/map-renderer/src/player-projection.ts`; their current responsibility already matches the approved design. Regression tests must prove that assumption.
+No production change is planned for `apps/player/lib/map/player-projection-source.ts` or `packages/map-renderer/src/player-projection.ts`; their existing responsibilities already match the approved design. Their existing tests remain regression gates.
 
 ---
 
 ### Task 1: Database-owned route knowledge and safe materialization
 
 **Files:**
-
 - Create: `supabase/tests/database/player_route_knowledge.test.sql`
 - Create: `supabase/migrations/20260831062000_player_route_knowledge_v0.sql`
 - Modify: `supabase/seed.sql`
@@ -62,54 +59,44 @@ No production change is planned for `apps/player/lib/map/player-projection-sourc
 
 **Interfaces:**
 
-- Produces private table:
-  ```sql
-  world_private.player_route_knowledge(
-    owner_user_id uuid,
-    source_route_id uuid,
-    projection_id uuid,
-    state world_private.knowledge_state,
-    confidence numeric(5,4),
-    origin_kind text,
-    origin_label text,
-    learned_at timestamptz,
-    refreshed_at timestamptz
-  )
-  ```
-- Produces service-only routine:
-  ```sql
-  server_api.refresh_player_route_projection_v1(
-    p_owner_user_id uuid,
-    p_source_route_id uuid
-  ) returns void
-  ```
-- The routine consumes canonical `world_private.routes`, private route/location knowledge mappings, and already-sanitized `player_api.map_nodes`.
-- The routine produces or removes exactly one `player_api.map_routes` row for that owner/source route.
-- Public route rows contain only player-local projection IDs, `knowledge_state`, safe `geom`, `label = null`, `details = '{}'::jsonb`, and timestamp.
+```sql
+world_private.player_route_knowledge(
+  owner_user_id uuid,
+  source_route_id uuid,
+  projection_id uuid,
+  state world_private.knowledge_state,
+  confidence numeric(5,4),
+  origin_kind text,
+  origin_label text,
+  learned_at timestamptz,
+  refreshed_at timestamptz
+)
+```
 
-- [ ] **Step 1: Add failing pgtap coverage before the migration exists**
+```sql
+server_api.refresh_player_route_projection_v1(
+  p_owner_user_id uuid,
+  p_source_route_id uuid
+) returns void
+```
 
-Create `supabase/tests/database/player_route_knowledge.test.sql` with the security contract expressed directly against the database. Use the seeded player IDs already canonical in the repo:
+The materializer reads canonical route truth only inside the trusted database boundary, derives topology only from already-authorized `player_api.map_nodes.geom`, and writes/removes exactly one player-local `player_api.map_routes` row.
+
+- [ ] **Step 1: Write the failing database contract**
+
+Create `supabase/tests/database/player_route_knowledge.test.sql` beginning with:
 
 ```sql
 begin;
-
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
+select plan(20);
 
-select plan(17);
-
-select has_table(
-  'world_private',
-  'player_route_knowledge',
-  'private per-player route knowledge exists'
-);
-
+select has_table('world_private', 'player_route_knowledge', 'private route knowledge exists');
 select ok(
   not has_table_privilege('authenticated', 'world_private.player_route_knowledge', 'SELECT'),
   'authenticated cannot read private route knowledge'
 );
-
 select ok(
   not has_function_privilege(
     'authenticated',
@@ -118,7 +105,6 @@ select ok(
   ),
   'authenticated cannot execute route materialization'
 );
-
 select ok(
   has_function_privilege(
     'service_role',
@@ -127,149 +113,154 @@ select ok(
   ),
   'service_role can execute route materialization'
 );
+select hasnt_column('player_api', 'map_routes', 'source_route_id', 'no canonical route id');
+select hasnt_column('player_api', 'map_routes', 'from_location_id', 'no canonical from-location id');
+select hasnt_column('player_api', 'map_routes', 'to_location_id', 'no canonical to-location id');
+```
 
-select hasnt_column(
-  'player_api',
-  'map_routes',
-  'source_route_id',
-  'player route surface exposes no canonical source route id'
-);
+Then prove the seeded `indication` route is topological and isolated:
 
-select hasnt_column(
-  'player_api',
-  'map_routes',
-  'from_location_id',
-  'player route surface exposes no canonical from-location id'
-);
-
-select hasnt_column(
-  'player_api',
-  'map_routes',
-  'to_location_id',
-  'player route surface exposes no canonical to-location id'
-);
-
+```sql
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
 set local role authenticated;
 
 select results_eq(
   $$select count(*)::bigint from player_api.map_routes$$,
   $$values (1::bigint)$$,
-  'player A sees one player-local route row'
+  'player A sees one route row'
 );
-
 select results_eq(
-  $$
-    select knowledge_state, extensions.st_astext(geom)
-    from player_api.map_routes
-    where projection_id = '93000000-0000-4000-8000-000000000001'::uuid
-  $$,
+  $$select knowledge_state, extensions.st_astext(geom)
+      from player_api.map_routes
+      where projection_id = '93000000-0000-4000-8000-000000000001'::uuid$$,
   $$values ('indication'::text, 'LINESTRING(100 120,820 860)'::text)$$,
-  'player A low-state route is topological from authorized endpoint positions'
+  'indication uses authorized endpoint topology'
 );
+```
 
+Reset to trusted test role and explicitly exercise the other two low states against the same ghost endpoint:
+
+```sql
+reset role;
+update world_private.player_route_knowledge
+   set state = 'rumor', refreshed_at = '2026-08-31T06:01:00Z'
+ where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+   and source_route_id = '30000000-0000-4000-8000-000000000001'::uuid;
+select server_api.refresh_player_route_projection_v1(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid,
+  '30000000-0000-4000-8000-000000000001'::uuid
+);
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
+set local role authenticated;
 select results_eq(
-  $$
-    select count(*)::bigint
-    from player_api.map_routes
-    where extensions.st_dwithin(
-      geom,
-      extensions.st_setsrid(extensions.st_makepoint(1400, 100), 0),
-      0.000001
-    )
-  $$,
-  $$values (0::bigint)$$,
-  'player A route does not contain the adversarial canonical midpoint'
+  $$select knowledge_state, extensions.st_astext(geom)
+      from player_api.map_routes
+      where projection_id = '93000000-0000-4000-8000-000000000001'::uuid$$,
+  $$values ('rumor'::text, 'LINESTRING(100 120,820 860)'::text)$$,
+  'rumor never exposes canonical route geometry'
 );
 
+reset role;
+update world_private.player_route_knowledge
+   set state = 'localized', refreshed_at = '2026-08-31T06:02:00Z'
+ where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+   and source_route_id = '30000000-0000-4000-8000-000000000001'::uuid;
+select server_api.refresh_player_route_projection_v1(
+  'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid,
+  '30000000-0000-4000-8000-000000000001'::uuid
+);
+select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
+set local role authenticated;
 select results_eq(
-  $$select count(*)::bigint from player_api.map_routes where projection_id = '94000000-0000-4000-8000-000000000001'::uuid$$,
-  $$values (0::bigint)$$,
-  'player A cannot read player B route projection id'
+  $$select knowledge_state, extensions.st_astext(geom)
+      from player_api.map_routes
+      where projection_id = '93000000-0000-4000-8000-000000000001'::uuid$$,
+  $$values ('localized'::text, 'LINESTRING(100 120,820 860)'::text)$$,
+  'localized still uses authorized endpoint topology'
 );
+select results_eq(
+  $$select label, details from player_api.map_routes
+      where projection_id = '93000000-0000-4000-8000-000000000001'::uuid$$,
+  $$values (null::text, '{}'::jsonb)$$,
+  'public route label/details contain no canonical-derived payload'
+);
+select results_eq(
+  $$select count(*)::bigint from player_api.map_routes
+      where extensions.st_dwithin(
+        geom,
+        extensions.st_setsrid(extensions.st_makepoint(1400, 100), 0),
+        0.000001
+      )$$,
+  $$values (0::bigint)$$,
+  'player A cannot recover the adversarial canonical midpoint'
+);
+select results_eq(
+  $$select count(*)::bigint from player_api.map_routes
+      where projection_id = '94000000-0000-4000-8000-000000000001'::uuid$$,
+  $$values (0::bigint)$$,
+  'player A cannot read player B route id'
+);
+```
 
+Prove exact high-state geometry for B, then confirmed-with-ghost fallback for A:
+
+```sql
 reset role;
 select set_config('request.jwt.claim.sub', 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2', true);
 set local role authenticated;
-
 select results_eq(
-  $$
-    select knowledge_state, extensions.st_astext(geom)
-    from player_api.map_routes
-    where projection_id = '94000000-0000-4000-8000-000000000001'::uuid
-  $$,
+  $$select knowledge_state, extensions.st_astext(geom)
+      from player_api.map_routes
+      where projection_id = '94000000-0000-4000-8000-000000000001'::uuid$$,
   $$values ('investigated'::text, 'LINESTRING(100 120,1400 100,900 900)'::text)$$,
-  'player B investigated route may receive exact canonical geometry with two exact endpoints'
+  'investigated route with exact endpoints receives exact geometry'
 );
 
 reset role;
-
 update world_private.player_route_knowledge
-set state = 'confirmed', refreshed_at = '2026-08-31T06:00:00Z'
-where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
-  and source_route_id = '30000000-0000-4000-8000-000000000001'::uuid;
-
+   set state = 'confirmed', refreshed_at = '2026-08-31T06:03:00Z'
+ where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+   and source_route_id = '30000000-0000-4000-8000-000000000001'::uuid;
 select server_api.refresh_player_route_projection_v1(
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid,
   '30000000-0000-4000-8000-000000000001'::uuid
 );
-
 select set_config('request.jwt.claim.sub', 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1', true);
 set local role authenticated;
-
 select results_eq(
-  $$
-    select knowledge_state, extensions.st_astext(geom)
-    from player_api.map_routes
-    where projection_id = '93000000-0000-4000-8000-000000000001'::uuid
-  $$,
+  $$select knowledge_state, extensions.st_astext(geom)
+      from player_api.map_routes
+      where projection_id = '93000000-0000-4000-8000-000000000001'::uuid$$,
   $$values ('confirmed'::text, 'LINESTRING(100 120,820 860)'::text)$$,
-  'confirmed route with a ghost endpoint still falls back to safe topology'
+  'confirmed route with ghost endpoint still falls back safely'
 );
+```
 
+Finally remove A's ghost public endpoint and prove suppression, then verify baseline privileges:
+
+```sql
 reset role;
-
 delete from player_api.map_nodes
-where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
-  and projection_id = '91000000-0000-4000-8000-000000000002'::uuid;
-
+ where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+   and projection_id = '91000000-0000-4000-8000-000000000002'::uuid;
 select server_api.refresh_player_route_projection_v1(
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid,
   '30000000-0000-4000-8000-000000000001'::uuid
 );
-
 select results_eq(
-  $$
-    select count(*)::bigint
-    from player_api.map_routes
-    where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
-  $$,
+  $$select count(*)::bigint from player_api.map_routes
+      where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid$$,
   $$values (0::bigint)$$,
-  'missing endpoint projection suppresses the route'
+  'missing endpoint suppresses route'
 );
-
-select ok(
-  not has_schema_privilege('authenticated', 'world_private', 'USAGE'),
-  '8D preserves the world_private schema boundary'
-);
-
-select ok(
-  has_table_privilege('authenticated', 'player_api.map_routes', 'SELECT'),
-  'authenticated still reads only the sanitized route surface'
-);
-
-select ok(
-  not has_table_privilege('authenticated', 'player_api.map_routes', 'INSERT'),
-  'authenticated cannot directly insert route projection rows'
-);
-
+select ok(not has_schema_privilege('authenticated', 'world_private', 'USAGE'), 'world_private stays private');
+select ok(has_table_privilege('authenticated', 'player_api.map_routes', 'SELECT'), 'authenticated can select safe routes');
+select ok(not has_table_privilege('authenticated', 'player_api.map_routes', 'INSERT'), 'authenticated cannot insert routes');
 select * from finish();
 rollback;
 ```
 
-- [ ] **Step 2: Run the database suite and verify RED**
-
-Run:
+- [ ] **Step 2: Run the DB suite and verify RED**
 
 ```bash
 pnpm db:start
@@ -277,11 +268,11 @@ pnpm db:reset
 pnpm db:test
 ```
 
-Expected: `player_route_knowledge.test.sql` fails because `world_private.player_route_knowledge` and `server_api.refresh_player_route_projection_v1(uuid,uuid)` do not exist yet. Existing tests must remain green up to that new failure.
+Expected: the new test fails because the private table/materializer do not exist. Existing tests remain green up to the new contract failure.
 
-- [ ] **Step 3: Add the migration with the minimal private model and materializer**
+- [ ] **Step 3: Implement the minimal migration**
 
-Create `supabase/migrations/20260831062000_player_route_knowledge_v0.sql` with this shape:
+Create `supabase/migrations/20260831062000_player_route_knowledge_v0.sql`:
 
 ```sql
 begin;
@@ -302,7 +293,6 @@ create table world_private.player_route_knowledge (
 
 create index player_route_knowledge_owner_idx
   on world_private.player_route_knowledge (owner_user_id);
-
 revoke all on world_private.player_route_knowledge from public, anon, authenticated;
 grant all on world_private.player_route_knowledge to service_role;
 
@@ -327,77 +317,54 @@ declare
   v_public_geom extensions.geometry;
   v_exact_allowed boolean;
 begin
-  select *
-    into v_knowledge
+  select * into v_knowledge
     from world_private.player_route_knowledge
    where owner_user_id = p_owner_user_id
      and source_route_id = p_source_route_id;
-
   if not found then
     raise exception using errcode = 'P0002', message = 'route_knowledge_not_found';
   end if;
 
-  select *
-    into v_route
-    from world_private.routes
-   where id = p_source_route_id;
-
+  select * into v_route from world_private.routes where id = p_source_route_id;
   if not found then
     delete from player_api.map_routes
-     where owner_user_id = p_owner_user_id
-       and projection_id = v_knowledge.projection_id;
+     where owner_user_id = p_owner_user_id and projection_id = v_knowledge.projection_id;
     return;
   end if;
 
-  select projection_id
-    into v_from_projection_id
+  select projection_id into v_from_projection_id
     from world_private.player_location_knowledge
-   where owner_user_id = p_owner_user_id
-     and source_location_id = v_route.from_location_id;
-
+   where owner_user_id = p_owner_user_id and source_location_id = v_route.from_location_id;
   if not found then
     delete from player_api.map_routes
-     where owner_user_id = p_owner_user_id
-       and projection_id = v_knowledge.projection_id;
+     where owner_user_id = p_owner_user_id and projection_id = v_knowledge.projection_id;
     return;
   end if;
 
-  select projection_id
-    into v_to_projection_id
+  select projection_id into v_to_projection_id
     from world_private.player_location_knowledge
-   where owner_user_id = p_owner_user_id
-     and source_location_id = v_route.to_location_id;
-
+   where owner_user_id = p_owner_user_id and source_location_id = v_route.to_location_id;
   if not found then
     delete from player_api.map_routes
-     where owner_user_id = p_owner_user_id
-       and projection_id = v_knowledge.projection_id;
+     where owner_user_id = p_owner_user_id and projection_id = v_knowledge.projection_id;
     return;
   end if;
 
-  select role, geom
-    into v_from_role, v_from_geom
+  select role, geom into v_from_role, v_from_geom
     from player_api.map_nodes
-   where owner_user_id = p_owner_user_id
-     and projection_id = v_from_projection_id;
-
+   where owner_user_id = p_owner_user_id and projection_id = v_from_projection_id;
   if not found or v_from_geom is null then
     delete from player_api.map_routes
-     where owner_user_id = p_owner_user_id
-       and projection_id = v_knowledge.projection_id;
+     where owner_user_id = p_owner_user_id and projection_id = v_knowledge.projection_id;
     return;
   end if;
 
-  select role, geom
-    into v_to_role, v_to_geom
+  select role, geom into v_to_role, v_to_geom
     from player_api.map_nodes
-   where owner_user_id = p_owner_user_id
-     and projection_id = v_to_projection_id;
-
+   where owner_user_id = p_owner_user_id and projection_id = v_to_projection_id;
   if not found or v_to_geom is null then
     delete from player_api.map_routes
-     where owner_user_id = p_owner_user_id
-       and projection_id = v_knowledge.projection_id;
+     where owner_user_id = p_owner_user_id and projection_id = v_knowledge.projection_id;
     return;
   end if;
 
@@ -412,25 +379,11 @@ begin
   end;
 
   insert into player_api.map_routes (
-    owner_user_id,
-    projection_id,
-    from_projection_id,
-    to_projection_id,
-    label,
-    knowledge_state,
-    geom,
-    details,
-    updated_at
+    owner_user_id, projection_id, from_projection_id, to_projection_id,
+    label, knowledge_state, geom, details, updated_at
   ) values (
-    p_owner_user_id,
-    v_knowledge.projection_id,
-    v_from_projection_id,
-    v_to_projection_id,
-    null,
-    v_knowledge.state::text,
-    v_public_geom,
-    '{}'::jsonb,
-    v_knowledge.refreshed_at
+    p_owner_user_id, v_knowledge.projection_id, v_from_projection_id, v_to_projection_id,
+    null, v_knowledge.state::text, v_public_geom, '{}'::jsonb, v_knowledge.refreshed_at
   )
   on conflict (owner_user_id, projection_id) do update
     set from_projection_id = excluded.from_projection_id,
@@ -451,130 +404,94 @@ grant execute on function server_api.refresh_player_route_projection_v1(uuid, uu
 commit;
 ```
 
-Do not derive `label` from `world_private.routes.name` and do not copy route `payload`/`secret_payload` into `details`.
+- [ ] **Step 4: Seed adversarial A/B route knowledge**
 
-- [ ] **Step 4: Extend the deterministic seed with adversarial route knowledge**
-
-In `supabase/seed.sql`, change the existing canonical route geometry to an unmistakably non-topological line:
+Change the existing canonical seed route to:
 
 ```sql
 extensions.st_geomfromtext('LINESTRING(100 120, 1400 100, 900 900)', 0)
 ```
 
-After the existing `player_api.map_nodes` seed insert, add:
+After the existing `player_api.map_nodes` seed rows, add:
 
 ```sql
 insert into world_private.player_route_knowledge (
-  owner_user_id,
-  source_route_id,
-  projection_id,
-  state,
-  confidence,
-  origin_kind,
-  origin_label,
-  learned_at,
-  refreshed_at
+  owner_user_id, source_route_id, projection_id, state, confidence,
+  origin_kind, origin_label, learned_at, refreshed_at
 )
 values
   (
     'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1',
     '30000000-0000-4000-8000-000000000001',
     '93000000-0000-4000-8000-000000000001',
-    'indication',
-    0.45,
-    'npc-rumor',
-    'mercador desconhecido',
-    '2026-08-29T13:30:00Z',
-    '2026-08-29T13:30:00Z'
+    'indication', 0.45, 'npc-rumor', 'mercador desconhecido',
+    '2026-08-29T13:30:00Z', '2026-08-29T13:30:00Z'
   ),
   (
     'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2',
     '30000000-0000-4000-8000-000000000001',
     '94000000-0000-4000-8000-000000000001',
-    'investigated',
-    0.95,
-    'personal-exploration',
-    'investigação própria',
-    '2026-08-29T15:00:00Z',
-    '2026-08-29T15:00:00Z'
+    'investigated', 0.95, 'personal-exploration', 'investigação própria',
+    '2026-08-29T15:00:00Z', '2026-08-29T15:00:00Z'
   );
 
 select server_api.refresh_player_route_projection_v1(
   'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid,
   '30000000-0000-4000-8000-000000000001'::uuid
 );
-
 select server_api.refresh_player_route_projection_v1(
   'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2'::uuid,
   '30000000-0000-4000-8000-000000000001'::uuid
 );
 ```
 
-This creates the security contrast required by the spec: player A gets `LINESTRING(100 120,820 860)` while player B may get `LINESTRING(100 120,1400 100,900 900)`.
-
-- [ ] **Step 5: Rebuild the DB and verify GREEN**
-
-Run:
+- [ ] **Step 5: Rebuild and make the DB contract GREEN**
 
 ```bash
 pnpm db:reset
 pnpm db:test
 ```
 
-Expected: all previous DB/RLS tests plus `player_route_knowledge.test.sql` pass. No existing assertion count may be silently reduced; update `plan(...)` only where new assertions were intentionally added.
+Expected: all previous DB/RLS tests plus the new 20-assertion route suite pass.
 
 - [ ] **Step 6: Regenerate checked-in database types**
-
-Run exactly the same generation path CI validates:
 
 ```bash
 pnpm db:types > supabase/database.types.generated.ts
 pnpm prettier --write supabase/database.types.generated.ts
 cp supabase/database.types.generated.ts supabase/database.types.ts
 rm supabase/database.types.generated.ts
-```
-
-Then verify the new generated types include `world_private.player_route_knowledge` and `server_api.refresh_player_route_projection_v1`, while `player_api.map_routes` still contains no canonical source columns.
-
-- [ ] **Step 7: Re-run database tests after type regeneration**
-
-```bash
 pnpm db:test
 ```
 
-Expected: PASS.
+Verify generated types include `world_private.player_route_knowledge` and `server_api.refresh_player_route_projection_v1` while `player_api.map_routes` has no canonical source columns.
 
-- [ ] **Step 8: Commit the database substrate**
+- [ ] **Step 7: Commit**
 
 ```bash
 git add supabase/migrations/20260831062000_player_route_knowledge_v0.sql \
   supabase/tests/database/player_route_knowledge.test.sql \
-  supabase/seed.sql \
-  supabase/database.types.ts
+  supabase/seed.sql supabase/database.types.ts
 git commit -m "feat: add safe player route knowledge materialization"
 ```
 
 ---
 
-### Task 2: Direct PostgREST and real-Auth route leakage proofs
+### Task 2: Direct PostgREST and real-Auth adversarial proofs
 
 **Files:**
-
 - Modify: `scripts/database-api-leakage-test.mjs`
 - Modify: `scripts/player-auth-projection-test.mjs`
 
 **Interfaces:**
+- Player A route ID: `93000000-0000-4000-8000-000000000001`.
+- Player B route ID: `94000000-0000-4000-8000-000000000001`.
+- Canonical route ID: `30000000-0000-4000-8000-000000000001`; it must never occur in player JSON.
+- Player A geometry must be `[[100,120],[820,860]]`; player B may receive `[[100,120],[1400,100],[900,900]]`.
 
-- Consumes player-facing rows only through PostgREST profile `player_api`.
-- Must never query `world_private` successfully with a player token.
-- Player A route projection ID: `93000000-0000-4000-8000-000000000001`.
-- Player B route projection ID: `94000000-0000-4000-8000-000000000001`.
-- Canonical route ID: `30000000-0000-4000-8000-000000000001`, which must never appear in player JSON.
-- Adversarial canonical midpoint: `[1400, 100]`, which must never appear in player A route geometry.
+- [ ] **Step 1: Extend direct PostgREST leakage assertions**
 
-- [ ] **Step 1: Extend the direct PostgREST smoke**
-
-Add route constants and a LineString helper to `scripts/database-api-leakage-test.mjs`:
+Add:
 
 ```js
 const CANONICAL_ROUTE_ID = '30000000-0000-4000-8000-000000000001';
@@ -590,49 +507,9 @@ function assertLineString(row, expected, context) {
 }
 ```
 
-After player A node assertions, query:
+For A query `map_routes?select=*`, require one `indication` row, exact topological coordinates, absence of canonical route ID, B route ID, `[1400,100]`, `source_route_id`, canonical labels, and private payload keys. For B require one `investigated` row with exact adversarial geometry and no A route ID.
 
-```js
-const playerARoutesResponse = await request(
-  env.API_URL,
-  env.ANON_KEY,
-  playerAJwt,
-  'player_api',
-  'map_routes?select=*&order=projection_id.asc',
-);
-const playerARoutes = await readJson(playerARoutesResponse, 'player A route projection');
-assert(playerARoutes.length === 1, `player A expected 1 route, received ${playerARoutes.length}`);
-const playerARoute = playerARoutes[0];
-assert(playerARoute.projection_id === PLAYER_A_ROUTE_PROJECTION_ID, 'player A route id mismatch');
-assert(playerARoute.knowledge_state === 'indication', 'player A route state mismatch');
-assertLineString(playerARoute, [[100, 120], [820, 860]], 'player A route');
-const playerARouteJson = JSON.stringify(playerARoutes);
-assert(!playerARouteJson.includes(CANONICAL_ROUTE_ID), 'player A received canonical route id');
-assert(!playerARouteJson.includes(PLAYER_B_ROUTE_PROJECTION_ID), 'player A received player B route id');
-assert(!playerARouteJson.includes('[1400,100]'), 'player A received canonical route midpoint');
-assert(!('source_route_id' in playerARoute), 'player route surface exposes source_route_id');
-```
-
-After player B node assertions, query and prove exact authorized geometry:
-
-```js
-const playerBRoutesResponse = await request(
-  env.API_URL,
-  env.ANON_KEY,
-  playerBJwt,
-  'player_api',
-  'map_routes?select=*&order=projection_id.asc',
-);
-const playerBRoutes = await readJson(playerBRoutesResponse, 'player B route projection');
-assert(playerBRoutes.length === 1, `player B expected 1 route, received ${playerBRoutes.length}`);
-const playerBRoute = playerBRoutes[0];
-assert(playerBRoute.projection_id === PLAYER_B_ROUTE_PROJECTION_ID, 'player B route id mismatch');
-assert(playerBRoute.knowledge_state === 'investigated', 'player B route state mismatch');
-assertLineString(playerBRoute, [[100, 120], [1400, 100], [900, 900]], 'player B route');
-assert(!JSON.stringify(playerBRoutes).includes(PLAYER_A_ROUTE_PROJECTION_ID), 'player B received player A route id');
-```
-
-Also attempt forbidden canonical-column selection:
+Add a forbidden canonical-column request:
 
 ```js
 const forbiddenRouteColumnResponse = await request(
@@ -645,65 +522,41 @@ const forbiddenRouteColumnResponse = await request(
 assert(!forbiddenRouteColumnResponse.ok, 'player_api unexpectedly exposes source_route_id');
 ```
 
-- [ ] **Step 2: Run the direct smoke**
+And directly attempt the new RPC with a player token:
+
+```js
+const forbiddenRouteMaterialization = await rpcRequest(
+  env.API_URL,
+  env.ANON_KEY,
+  playerAJwt,
+  'server_api',
+  'refresh_player_route_projection_v1',
+  {
+    p_owner_user_id: PLAYER_A,
+    p_source_route_id: CANONICAL_ROUTE_ID,
+  },
+);
+assert(
+  !forbiddenRouteMaterialization.ok,
+  'authenticated player unexpectedly reached route materialization RPC',
+);
+```
+
+- [ ] **Step 2: Run direct smoke**
 
 ```bash
 node scripts/database-api-leakage-test.mjs
 ```
 
-Expected: PASS and no raw secrets/service keys printed.
+Expected: PASS; no key/token value is printed.
 
-- [ ] **Step 3: Extend the real Auth A/B smoke with route isolation**
+- [ ] **Step 3: Extend the real Auth A/B smoke**
 
-In `scripts/player-auth-projection-test.mjs`, add the same A/B route projection constants and query `map_routes` using the real access tokens produced by Supabase Auth.
+Use the real A/B access tokens already created by `scripts/player-auth-projection-test.mjs` to query `player_api.map_routes`. Require A's topological geometry, B's exact investigated geometry, and zero rows when A explicitly filters `owner_user_id=eq.${PLAYER_B}`.
 
-For player A assert:
+Use the same body-free error diagnostics already present in the script.
 
-```js
-const playerARouteResponse = await postgrestRequest(
-  env.API_URL,
-  anonKey,
-  'player_api',
-  'map_routes?select=*&order=projection_id.asc',
-  playerAToken,
-);
-const playerARoutes = await readJson(playerARouteResponse, 'authenticated player A routes');
-assert(playerARoutes.length === 1, 'player A did not receive exactly one route');
-assert(playerARoutes[0].projection_id === PLAYER_A_ROUTE_PROJECTION_ID, 'player A route id mismatch');
-assert(
-  JSON.stringify(playerARoutes[0].geom?.coordinates) === JSON.stringify([[100, 120], [820, 860]]),
-  'player A received geometry beyond its authorized route precision',
-);
-```
-
-Attempt an explicit owner filter for B and require zero rows:
-
-```js
-const forcedPlayerBRouteResponse = await postgrestRequest(
-  env.API_URL,
-  anonKey,
-  'player_api',
-  `map_routes?select=*&owner_user_id=eq.${PLAYER_B}`,
-  playerAToken,
-);
-const forcedPlayerBRoutes = await readJson(
-  forcedPlayerBRouteResponse,
-  'player A forced player B route query',
-);
-assert(forcedPlayerBRoutes.length === 0, 'player A bypassed route RLS for player B');
-```
-
-For player B assert exact investigated geometry and absence of A’s route projection ID.
-
-- [ ] **Step 4: Run the real Auth smoke**
-
-```bash
-node scripts/player-auth-projection-test.mjs
-```
-
-Expected: PASS. Keep diagnostics body-free on auth failures exactly as the existing script does.
-
-- [ ] **Step 5: Run the full DB/security sequence**
+- [ ] **Step 4: Run security sequence**
 
 ```bash
 pnpm db:test
@@ -713,7 +566,7 @@ node scripts/player-auth-projection-test.mjs
 
 Expected: all PASS.
 
-- [ ] **Step 6: Commit security acceptance tests**
+- [ ] **Step 5: Commit**
 
 ```bash
 git add scripts/database-api-leakage-test.mjs scripts/player-auth-projection-test.mjs
@@ -725,104 +578,72 @@ git commit -m "test: prove player route geometry isolation"
 ### Task 3: Route-specific anti-leak guard and SVG knowledge presentation
 
 **Files:**
-
 - Modify: `packages/map-renderer/src/projection-safety.test.ts`
 - Modify: `packages/map-renderer/src/projection-safety.ts`
 - Modify: `apps/player/app/player-map-svg.test.tsx`
 - Modify: `apps/player/app/player-map-svg.tsx`
 - Modify: `apps/player/app/globals.css`
-- Regression-test only: `apps/player/lib/map/player-projection-source.test.ts`
-- Regression-test only: `packages/map-renderer/src/player-projection.test.ts`
+- Regression only: `packages/map-renderer/src/player-projection.test.ts`
+- Regression only: `packages/map-renderer/src/player-viewport.test.ts`
+- Regression only: `apps/player/lib/map/player-projection-source.test.ts`
 
-**Interfaces:**
+**Interfaces:** `ProjectionRoute.path` stays required. `PlayerMapSvg` draws exactly the supplied path and adds only `data-route-knowledge-state={route.knowledgeState}` for presentation.
 
-- `ProjectionRoute.path` stays required and unchanged.
-- `ProjectionRoute.knowledgeState` remains the state source.
-- `PlayerMapSvg` adds only `data-route-knowledge-state={route.knowledgeState}`; it does not inspect endpoints or reconstruct geometry.
-- Existing `data-route-style={route.styleKey}` remains for compatibility.
+- [ ] **Step 1: Write failing route-key guard tests**
 
-- [ ] **Step 1: Write a failing anti-leak guard test for route-specific key aliases**
-
-Extend `forbiddenKeys` in `packages/map-renderer/src/projection-safety.test.ts` first:
+Add these keys to the test fixture before production code:
 
 ```ts
-const forbiddenKeys = [
-  'canonicalId',
-  'canonical_id',
-  'canonicalRouteId',
-  'canonical_route_id',
-  'sourceLocationId',
-  'source_location_id',
-  'sourceRouteId',
-  'source_route_id',
-  'fromLocationId',
-  'from_location_id',
-  'toLocationId',
-  'to_location_id',
-  'ownerUserId',
-  'owner_user_id',
-  'worldId',
-  'world_id',
-  'secretPayload',
-  'secret_payload',
-  'accessToken',
-  'access_token',
-  'refreshToken',
-  'refresh_token',
-  'email',
-] as const;
+'canonicalRouteId',
+'canonical_route_id',
+'sourceRouteId',
+'source_route_id',
+'fromLocationId',
+'from_location_id',
+'toLocationId',
+'to_location_id',
 ```
 
-- [ ] **Step 2: Run the guard test and verify RED**
+- [ ] **Step 2: Verify RED**
 
 ```bash
 pnpm vitest run packages/map-renderer/src/projection-safety.test.ts
 ```
 
-Expected: FAIL for at least the new route-specific aliases because `projection-safety.ts` does not forbid them yet.
+Expected: the newly added aliases are not all rejected yet.
 
-- [ ] **Step 3: Add the same route-specific aliases to the production guard**
+- [ ] **Step 3: Add the exact same aliases to `FORBIDDEN_PLAYER_PROJECTION_KEYS`**
 
-Update `FORBIDDEN_PLAYER_PROJECTION_KEYS` in `packages/map-renderer/src/projection-safety.ts` with exactly the additional eight route/endpoint aliases above.
+Do not add a looser substring heuristic; preserve the explicit recursive allow-by-shape/deny-by-key guard style already in the package.
 
-- [ ] **Step 4: Re-run the guard test**
+- [ ] **Step 4: Verify guard GREEN**
 
 ```bash
 pnpm vitest run packages/map-renderer/src/projection-safety.test.ts
 ```
 
-Expected: PASS.
+- [ ] **Step 5: Write failing SVG state metadata test**
 
-- [ ] **Step 5: Write the failing SVG state-metadata test**
-
-Extend `apps/player/app/player-map-svg.test.tsx` with route fixtures for all six knowledge states and assert the generated markup contains:
+Build route fixtures for all six states and assert:
 
 ```ts
 for (const state of [
-  'rumor',
-  'indication',
-  'localized',
-  'confirmed',
-  'investigated',
-  'understood',
+  'rumor', 'indication', 'localized',
+  'confirmed', 'investigated', 'understood',
 ] as const) {
   expect(html).toContain(`data-route-knowledge-state="${state}"`);
 }
 ```
 
-Keep a deliberately bent supplied route path in at least one fixture and assert its exact `points="..."` string is preserved; the component must not replace it with an endpoint-only line.
+At least one route must use a bent three-point `path`; assert the exact `points="..."` survives unchanged to prove the renderer does not reconstruct geometry.
 
-- [ ] **Step 6: Run the SVG test and verify RED**
+- [ ] **Step 6: Verify SVG RED**
 
 ```bash
 pnpm vitest run apps/player/app/player-map-svg.test.tsx
 ```
 
-Expected: FAIL because `data-route-knowledge-state` is not emitted yet.
-
 - [ ] **Step 7: Add presentation metadata only**
-
-Change the existing route `<polyline>` in `apps/player/app/player-map-svg.tsx` to:
 
 ```tsx
 <polyline
@@ -836,39 +657,30 @@ Change the existing route `<polyline>` in `apps/player/app/player-map-svg.tsx` t
 />
 ```
 
-Do not add any geometry logic to this component.
-
-- [ ] **Step 8: Add the six-state visual hierarchy in existing CSS**
-
-Keep the generic route rule, then append:
+- [ ] **Step 8: Add six-state CSS hierarchy**
 
 ```css
 .player-map-svg [data-route-knowledge-state='rumor'] {
   stroke-dasharray: 1 5;
   opacity: 0.22;
 }
-
 .player-map-svg [data-route-knowledge-state='indication'] {
   stroke-dasharray: 3 5;
   opacity: 0.36;
 }
-
 .player-map-svg [data-route-knowledge-state='localized'] {
   stroke-dasharray: 6 4;
   opacity: 0.5;
 }
-
 .player-map-svg [data-route-knowledge-state='confirmed'] {
   stroke-dasharray: none;
   opacity: 0.65;
 }
-
 .player-map-svg [data-route-knowledge-state='investigated'] {
   stroke-dasharray: none;
   stroke-width: 1.5;
   opacity: 0.78;
 }
-
 .player-map-svg [data-route-knowledge-state='understood'] {
   stroke-dasharray: none;
   stroke-width: 1.75;
@@ -876,9 +688,9 @@ Keep the generic route rule, then append:
 }
 ```
 
-These styles encode epistemic state only. They must not be used to decide whether a supplied route path is exact or topological.
+These values communicate state only; they never authorize precision.
 
-- [ ] **Step 9: Run focused renderer and projection tests**
+- [ ] **Step 9: Focused regression run**
 
 ```bash
 pnpm vitest run \
@@ -889,9 +701,9 @@ pnpm vitest run \
   apps/player/app/player-map-svg.test.tsx
 ```
 
-Expected: PASS. In particular, the existing projection-source test must continue proving that `details` such as `canonicalId` are not copied into `MapProjection`, and the renderer must preserve the authorized route path it receives.
+Expected: PASS. No production change to projection source/builder should be required.
 
-- [ ] **Step 10: Commit guard and renderer presentation**
+- [ ] **Step 10: Commit**
 
 ```bash
 git add packages/map-renderer/src/projection-safety.ts \
@@ -904,22 +716,15 @@ git commit -m "feat: present safe route knowledge degrees"
 
 ---
 
-### Task 4: Full verification, draft PR, technical checkpoint, and canonical progress sync
+### Task 4: Full verification, draft PR, and Gate 8D checkpoint
 
 **Files:**
-
 - Create: `docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md`
 - Modify: `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md`
-- No code changes are allowed in this task unless a verification failure reveals a real defect; if that happens, fix via TDD, commit separately, and restart the full verification sequence.
 
-**Interfaces:**
+No feature code is added in this task. If verification finds a defect, fix it via a separate TDD commit and restart verification.
 
-- Final GitHub PR target: base `foundation/player-renderer-v0`, head `foundation/player-route-knowledge-v0`.
-- PR must remain `draft/open/unmerged`.
-- Drive update happens only after the final documented head has green `quality` and `database` CI jobs.
-- Gate 8 remains OPEN; next cut stays 8E — compact/touch node details.
-
-- [ ] **Step 1: Run the exact local quality sequence represented in CI**
+- [ ] **Step 1: Exact quality sequence**
 
 ```bash
 pnpm format:check
@@ -929,40 +734,35 @@ pnpm test
 pnpm build
 ```
 
-Expected: all PASS. Pre-existing lint warnings may remain only if they are unchanged; no new lint errors or warnings introduced by 8D.
+Expected: all PASS; no new lint warnings/errors.
 
-- [ ] **Step 2: Run the exact local database/security sequence represented in CI**
+- [ ] **Step 2: Exact database/security sequence**
 
 ```bash
 pnpm db:reset
 pnpm db:test
 node scripts/database-api-leakage-test.mjs
 node scripts/player-auth-projection-test.mjs
-```
-
-Then perform the same type-drift proof as CI:
-
-```bash
 pnpm db:types > supabase/database.types.generated.ts
 pnpm prettier --write supabase/database.types.generated.ts
 diff -u supabase/database.types.ts supabase/database.types.generated.ts
 rm supabase/database.types.generated.ts
 ```
 
-Expected: every command passes and `diff` is empty.
+Expected: all PASS and empty type diff.
 
-- [ ] **Step 3: Audit the branch against the exact 8C base**
+- [ ] **Step 3: Audit against exact 8C base**
 
 ```bash
 git diff --check 68bdd424348822e297ad4803367a16243dddb070...HEAD
 git diff --name-status 68bdd424348822e297ad4803367a16243dddb070...HEAD
 ```
 
-Review every changed path and verify there is no browser Supabase client, service secret, `world_private` read in player code, canonical route ID field in projection types, 8E UI, merge/deploy config, or unrelated refactor.
+Reject any browser service secret, `world_private` read in player code, canonical route field in `MapProjection`, 8E UI, merge/deploy change, probe file, or unrelated refactor.
 
-- [ ] **Step 4: Create the draft PR**
+- [ ] **Step 4: Create draft PR**
 
-Create the pull request with:
+Use:
 
 ```text
 Title: Foundation V0 — Player Route Knowledge 8D
@@ -971,7 +771,7 @@ Head: foundation/player-route-knowledge-v0
 Draft: true
 ```
 
-PR body must summarize:
+PR body:
 
 ```markdown
 ## Gate 8D
@@ -987,50 +787,44 @@ PR body must summarize:
 No merge or deploy requested.
 ```
 
-- [ ] **Step 5: Verify CI on the functional head**
+- [ ] **Step 5: Require remote CI GREEN on the functional head**
 
-Read the workflow run attached to the current head and require both jobs:
+Both jobs must be present and successful:
 
 ```text
 quality: SUCCESS
 database: SUCCESS
 ```
 
-The database job must still execute, in order: Supabase start, reset from Git, pgtap DB/RLS tests, PostgREST leakage smoke, real Auth A/B smoke, database type drift check, teardown.
+Database evidence must still include reset from Git, pgtap suite, PostgREST smoke, Auth A/B smoke, type-drift check, and teardown.
 
-Do not treat local success as closure if either remote job is absent or failing.
+- [ ] **Step 6: Write concrete checkpoint docs**
 
-- [ ] **Step 6: Write the technical status document using concrete evidence**
+Create `docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md` with the actual functional head SHA, actual PR number, actual workflow run ID/number, actual unit-test count, actual DB/RLS count, and exact smoke success messages observed from CI. State explicitly:
 
-Create `docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md` only after the functional CI is green. Record the concrete branch, functional head SHA, workflow run number/ID, PR number, test counts shown by CI, database/RLS count, and the exact permanent smoke success messages produced by the final scripts.
-
-The document must explicitly state:
-
-```markdown
-- PR is draft/open/unmerged.
-- No deploy occurred.
-- Gate 8D is implementation-complete on the functional green head.
-- Final technical closure requires the documentation commit itself to remain green.
-- Gate 8 overall remains open.
-- Next cut: 8E — compact/touch node details.
+```text
+PR draft/open/unmerged.
+No deploy occurred.
+Gate 8D implementation-complete on the functional green head.
+Final technical closure requires the documentation head itself to remain green.
+Gate 8 overall remains open.
+Next cut: 8E — compact/touch node details.
 ```
 
-- [ ] **Step 7: Update the consolidated progress document**
+Append a verified 8D section to `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md`; do not mark later confidence/origin/freshness/privacy UI, notes, sharing, mobile, or Gate 8 overall complete.
 
-Append a `## Gate 8D — Route Knowledge Degrees` section to `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md` describing only verified work. Do not mark future confidence/origin/freshness/privacy UI, notes, sharing, mobile interactions, or Gate 8 overall as complete.
-
-- [ ] **Step 8: Commit documentation**
+- [ ] **Step 7: Commit documentation**
 
 ```bash
 git add docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md
 git commit -m "docs: record Gate 8D route knowledge checkpoint"
 ```
 
-- [ ] **Step 9: Verify CI again on the documentation head**
+- [ ] **Step 8: Require remote CI GREEN again on the documentation head**
 
-Require `quality: SUCCESS` and `database: SUCCESS` on the new head. This second run is the final technical closure evidence for 8D.
+Require both `quality` and `database` SUCCESS on the exact new head. This is final 8D technical closure evidence.
 
-- [ ] **Step 10: Re-audit final PR state and diff**
+- [ ] **Step 9: Final PR/diff audit**
 
 Verify:
 
@@ -1040,17 +834,15 @@ Draft: TRUE
 Merged: FALSE
 Base: foundation/player-renderer-v0
 Head: foundation/player-route-knowledge-v0
-Head SHA: exactly the final documentation head
+Head SHA: exact documentation head
 ```
 
-Compare the branch again to `68bdd424348822e297ad4803367a16243dddb070` and confirm the final tree contains no unexpected files.
+Compare again to `68bdd424348822e297ad4803367a16243dddb070` and confirm no unexpected files.
 
-- [ ] **Step 11: Update canonical Google Drive progress only after final CI is green**
+- [ ] **Step 10: Update canonical Drive only after final CI is green**
 
-Update the canonical Master and Bootstrap Checklist with the concrete final head, PR number, final CI run, route-security behavior, final unit/DB counts, and the statement that 8A/8B/8C/8D are green while Gate 8 remains open.
+Update the Master and Bootstrap Checklist with the concrete final head, PR number, final CI run, route-security behavior, actual unit/DB counts, and statement that 8A/8B/8C/8D are green while Gate 8 remains open. Next action remains 8E; uncertainty corridors/per-segment route knowledge stay deferred.
 
-The next-action text must point to 8E compact/touch node details and keep later route uncertainty features explicitly deferred.
+- [ ] **Step 11: Stop before 8E**
 
-- [ ] **Step 12: Stop before 8E implementation**
-
-Do not merge, deploy, or begin 8E in the same closure task. Report the final 8D evidence and wait for the next explicit continuation instruction.
+Do not merge, deploy, or start 8E in the same closure task. Report final 8D evidence and await the next explicit continuation instruction.
