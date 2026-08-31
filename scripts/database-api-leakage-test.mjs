@@ -103,9 +103,13 @@ function assertLineString(row, expectedCoordinates, context) {
 }
 
 function assertDetail(row, expected, context) {
-  assert(row && typeof row.details === 'object' && row.details !== null, `${context} has no details`);
   assert(
-    JSON.stringify(Object.keys(row.details).sort()) === JSON.stringify(Object.keys(expected).sort()),
+    row && typeof row.details === 'object' && row.details !== null,
+    `${context} has no details`,
+  );
+  assert(
+    JSON.stringify(Object.keys(row.details).sort()) ===
+      JSON.stringify(Object.keys(expected).sort()),
     `${context} has unexpected detail keys`,
   );
   for (const [key, value] of Object.entries(expected)) {
@@ -171,7 +175,10 @@ assert(
   'player A received player B projection-local ID',
 );
 assert(!playerAJson.includes('under the north root'), 'player A received canonical secret payload');
-assert(!playerAJson.includes('unknown cultivators'), 'player A received canonical secret occupants');
+assert(
+  !playerAJson.includes('unknown cultivators'),
+  'player A received canonical secret occupants',
+);
 assert(
   !('secret_payload' in playerARows[0]),
   'player projection unexpectedly exposes secret_payload',
@@ -337,8 +344,14 @@ assert(
   !playerBJson.includes(PLAYER_A_SECRET_PROJECTION_ID),
   'player B received player A projection-local ID',
 );
-assert(!playerBJson.includes('under the north root'), 'player B received raw canonical secret payload');
-assert(!playerBJson.includes('unknown cultivators'), 'player B received raw canonical occupants payload');
+assert(
+  !playerBJson.includes('under the north root'),
+  'player B received raw canonical secret payload',
+);
+assert(
+  !playerBJson.includes('unknown cultivators'),
+  'player B received raw canonical occupants payload',
+);
 
 const playerBRouteResponse = await request(
   env.API_URL,
