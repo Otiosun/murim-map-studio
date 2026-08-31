@@ -12,28 +12,27 @@ Branch: `foundation/player-node-details-v0`
 
 Gate 8E adds compact mouse/touch/keyboard node details to the player map without weakening the player projection security boundary.
 
-This cut includes:
+Included:
 
-- a minimal typed player-safe node detail contract;
+- minimal typed player-safe node detail contract;
 - strict parsing of `player_api.map_nodes.details`;
 - propagation of authorized detail through `MapProjection`;
-- a small client interaction island around the existing server-rendered SVG;
+- a minimal client interaction island around the server-rendered SVG;
 - node selection by projection-local ID only;
 - a non-modal compact detail panel;
-- mouse, touch, Enter, Space, Escape and explicit close behavior;
-- larger interaction hit areas without changing visual/world geometry;
-- focused security, accessibility and regression tests.
+- pointer/touch, Enter, Space, Escape and explicit close behavior;
+- larger interaction hit areas without changing world geometry;
+- security, accessibility and regression tests.
 
-This cut does not include:
+Excluded:
 
-- confidence presentation semantics;
-- origin/freshness/privacy presentation;
+- confidence/origin/freshness/privacy presentation;
 - private player notes;
 - KnowledgeFact sharing;
 - pan/zoom;
 - route detail UI;
-- canonical/world IDs in the player contract;
-- new world-truth fetches from node interaction;
+- canonical/world/source IDs in player contracts;
+- any node-selection fetch/server action/client Supabase query;
 - full Playwright multi-browser/mobile coverage;
 - PixiJS/WebGPU.
 
@@ -41,48 +40,54 @@ Gate 8 remains open after 8E.
 
 ## 2. Existing invariants preserved
 
-8E must preserve all invariants established in 8A–8D:
+8E preserves all 8A–8D invariants:
 
-1. The browser/request never chooses the authenticated player identity.
+1. Browser/request never chooses authenticated player identity.
 2. `apps/player` never receives service-role credentials.
-3. The player path never queries or imports `world_private`.
-4. The browser does not receive a Supabase client for this interaction.
-5. `MapProjection` remains the anti-leak boundary consumed by presentation.
-6. Projection IDs are player-local IDs; canonical source IDs remain absent.
-7. Hidden geometry and identity are never reconstructed in the renderer.
-8. Raw database/source errors never surface to player UI.
-9. Fail-closed behavior remains mandatory.
+3. Player path never queries/imports `world_private`.
+4. No browser Supabase client is introduced for this interaction.
+5. `MapProjection` remains the anti-leak boundary.
+6. Player-facing IDs remain projection-local.
+7. Renderer never reconstructs hidden identity/geometry.
+8. Raw source/database errors never reach player UI.
+9. Fail-closed behavior is mandatory.
 10. Route precision rules from 8D remain unchanged.
 
-## 3. Architectural choice
+## 3. Architecture
 
 ### 3.1 Selected approach
 
-Keep `PlayerMapSvg` server-rendered and passive, then wrap it in a minimal client interaction island.
+Keep `PlayerMapSvg` server-rendered and passive. Add a minimal client `PlayerMapExplorer` around it.
 
-The server continues to:
+Server flow remains:
 
-1. resolve the authenticated session;
-2. load only the authenticated player's `player_api` rows;
+1. resolve authenticated session;
+2. load only that player's `player_api` rows;
 3. parse/build/validate `MapProjection`;
-4. run the anti-leak guard;
-5. render the SVG from the authorized projection.
+4. run recursive anti-leak guard;
+5. render SVG from the authorized projection.
 
-The client island receives only the authorized node data necessary for selection and the compact detail panel. It does not receive canonical IDs, database clients, secrets, world truth, route data, or a callback that can fetch additional node truth.
+The client island receives only the authorized node list needed for local selection/panel rendering. It receives no canonical IDs, route data, DB client, secrets, world truth, or callback capable of fetching more truth.
+
+Intended composition is equivalent to:
+
+```tsx
+<PlayerMapExplorer nodes={authorizedNodes}>
+  <PlayerMapSvg projection={projection} />
+</PlayerMapExplorer>
+```
+
+The exact prop shape may be refined in the implementation plan, but the boundary may not change.
 
 ### 3.2 Rejected alternatives
 
-#### Entire SVG as a Client Component
+**Entire SVG as Client Component:** rejected because a small selection state does not justify hydrating/re-owning the full renderer.
 
-Rejected for V0 because it moves the complete renderer into client JavaScript only to support a small interaction state. It increases hydration surface and couples rendering to interaction unnecessarily.
+**Server round-trip per selected node:** rejected because all authorized V0 detail is already in the initial projection; extra requests add latency and a new identity-bearing network surface.
 
-#### Server round-trip through URL/search params for every selected node
+## 4. Player-safe detail contract
 
-Rejected for V0 because every touch/click would become navigation/request latency despite all necessary authorized data already being present in the projection.
-
-## 4. Player-safe node detail contract
-
-Add a minimal typed contract in `packages/map-renderer`:
+Add:
 
 ```ts
 export interface ProjectionNodeDetail {
@@ -97,66 +102,55 @@ export interface ProjectionNodeDetail {
 detail?: ProjectionNodeDetail;
 ```
 
-No free-form detail object is exposed to presentation.
+No free-form detail object reaches presentation.
 
-### 4.1 Allowed fields
+### 4.1 Field rules
 
-#### `category`
-
-- optional;
-- trimmed non-empty string when present;
-- maximum 80 characters;
-- plain text only.
-
-#### `summary`
+`category`:
 
 - optional;
-- trimmed non-empty string when present;
-- maximum 600 characters;
-- plain text only.
+- string;
+- trimmed on input;
+- non-empty after trim;
+- maximum 80 characters after trim;
+- plain text.
 
-### 4.2 Explicitly absent in 8E
+`summary`:
 
-Node detail does not contain:
+- optional;
+- string;
+- trimmed on input;
+- non-empty after trim;
+- maximum 600 characters after trim;
+- plain text.
 
-- canonical/source/world IDs;
-- owner IDs;
-- coordinates or geometry;
-- approximate radius;
-- raw confidence value for presentation;
-- origin metadata;
-- freshness timestamps;
-- privacy flags;
-- URLs;
-- HTML;
-- interpreted Markdown;
-- arbitrary nested objects;
-- `payload` or `secret_payload`;
-- database metadata.
+An empty DB object `{}` normalizes to no projection detail (`detail` omitted).
 
-Future cuts may extend the typed contract only through an explicit reviewed design.
+No detail field may contain canonical/source/world/owner IDs, coordinates, geometry, radius, raw confidence presentation, origin/freshness/privacy metadata, URLs, HTML, interpreted Markdown, arbitrary nested objects, payloads, secret payloads, or database metadata.
 
-## 5. `player_api.map_nodes.details` semantics
+## 5. Semantics of `player_api.map_nodes.details`
 
-The column already exists and remains the player-facing materialized storage for authorized detail.
+The existing `details jsonb` column is already-authorized player presentation data. It is not a mirror of canonical location payload.
 
-Its semantic rule is strengthened:
+8E must not add any trigger/query/mapper/helper that automatically copies:
 
-> `player_api.map_nodes.details` is already-authorized player presentation data, not a mirror of canonical location payload.
+- `world_private.locations.payload`;
+- `world_private.locations.secret_payload`;
+- any other canonical private payload
 
-8E must not introduce a trigger, query, mapper, or convenience function that automatically copies `world_private.locations.payload`, `world_private.locations.secret_payload`, or other canonical private fields into `player_api.map_nodes.details`.
+into `player_api.map_nodes.details`.
 
-Trusted server/system code may materialize approved detail for a player. Direct player writes remain forbidden by the existing `player_api` permissions/RLS model.
+Trusted system/server code may explicitly materialize approved detail for a player. Direct player writes remain forbidden by existing permissions/RLS.
 
-For V0 tests and seed data, authorized examples may be inserted explicitly into `player_api.map_nodes.details` to prove player-specific behavior.
+Seed/tests may explicitly insert safe player-specific detail fixtures.
 
-## 6. Strict detail parsing
+## 6. Strict source parsing
 
-`apps/player/lib/map/player-projection-source.ts` remains the database adapter.
+`apps/player/lib/map/player-projection-source.ts` remains the DB adapter.
 
-It will add `details` to the selected `map_nodes` columns and parse it with a dedicated strict function before constructing `PlayerProjectionNodeInput`.
+It adds `details` to the `map_nodes` SELECT and parses with a dedicated strict parser before constructing `PlayerProjectionNodeInput`.
 
-Accepted input shapes:
+Valid DB shapes are exactly:
 
 ```json
 {}
@@ -167,450 +161,408 @@ Accepted input shapes:
 ```
 
 ```json
-{ "summary": "Um pequeno assentamento conhecido pelo personagem." }
+{ "summary": "Assentamento conhecido pelo personagem." }
 ```
 
 ```json
 {
   "category": "Vila",
-  "summary": "Um pequeno assentamento conhecido pelo personagem."
+  "summary": "Assentamento conhecido pelo personagem."
 }
 ```
 
-Any other shape is invalid, including:
+Invalid:
 
+- `null`;
 - arrays;
-- null;
 - non-object values;
 - extra keys;
 - non-string values;
-- empty/whitespace-only strings;
+- whitespace-only strings;
 - over-limit strings;
 - nested objects.
 
+Valid strings are normalized by trimming before being placed in the projection.
+
 ### 6.1 Failure policy
 
-Malformed or unexpected `details` causes projection loading to fail closed.
+Unexpected/malformed `details` fails the entire projection load closed.
 
-The source must not silently discard unknown keys and continue. Silent partial acceptance would allow schema drift or accidental leakage to remain undetected.
+The source must not silently discard unknown keys or salvage partial detail. Existing home-model sanitization converts this to the generic unavailable UI without exposing raw source errors.
 
-The existing home model sanitizes projection-source failures to the generic unavailable state. Raw source/database errors remain hidden.
+## 7. Projection construction and schema
 
-## 7. Projection construction and schema validation
+`PlayerProjectionNodeInput` gains optional typed `detail`.
 
-`PlayerProjectionNodeInput` gains an optional typed `detail` field.
+`buildPlayerMapProjection`:
 
-`buildPlayerMapProjection` copies only the already-parsed detail object into `ProjectionNode`.
+- copies only parsed detail;
+- omits `detail` when the normalized detail object is empty;
+- never synthesizes category/summary.
 
-`packages/world-schema` adds a strict `projectionNodeDetailSchema` and includes it as optional `detail` in `projectionNodeSchema`.
+`packages/world-schema` adds strict `projectionNodeDetailSchema` and optional `detail` on `projectionNodeSchema`.
 
-Because the schema remains `.strict()`, unexpected projection detail keys are rejected at the `MapProjection` boundary as a second line of defense.
+The schema stays `.strict()`. Unknown projection-detail keys fail before presentation.
 
-The recursive anti-leak validator still runs after projection construction/parsing. It must inspect `detail` recursively exactly as it inspects every other projection object.
+The recursive anti-leak guard still runs over the resulting projection, including `detail`.
 
 ## 8. Anti-leak guard
 
-The current recursive forbidden-key guard remains mandatory.
+No detail-specific bypass is allowed.
 
-8E tests must prove that forbidden identifiers or secret-looking fields cannot be smuggled inside `detail`, including nested adversarial objects introduced before schema validation/guard tests.
+Tests must prove forbidden identifier/payload aliases remain rejected if adversarial test values attempt to place them under `detail` or nested below it. The strict schema blocks arbitrary nesting in real projections; direct guard tests remain a defense-in-depth proof.
 
-No bypass is added for detail fields.
+## 9. Server/client ownership
 
-## 9. Server/client composition
+### Server
 
-### 9.1 Server responsibilities
+`page.tsx` remains a Server Component. Authentication and projection loading stay unchanged.
 
-`page.tsx` remains a Server Component and keeps session/projection loading unchanged.
+It derives `authorizedNodes = projection.items.filter(item => item.kind === 'node')` from the already-safe projection and supplies only those nodes to the client explorer.
 
-It derives the authorized node list from the already-safe `MapProjection` and passes only those nodes to the interaction island.
+`PlayerMapSvg` remains server-rendered.
 
-The SVG remains rendered by `PlayerMapSvg` as server output.
+### Client
 
-The intended composition is equivalent to:
-
-```tsx
-<PlayerMapExplorer nodes={authorizedNodes}>
-  <PlayerMapSvg projection={projection} />
-</PlayerMapExplorer>
-```
-
-The exact component API may differ during implementation if tests show a cleaner equivalent, but the boundary must remain:
-
-- interaction island owns selection only;
-- server renderer owns map markup;
-- no client data fetch;
-- no client database dependency.
-
-### 9.2 Client responsibilities
-
-`PlayerMapExplorer` is the only new client-state owner for this cut.
-
-Its primary state is equivalent to:
+`PlayerMapExplorer` owns only ephemeral selection state:
 
 ```ts
 selectedNodeId: ProjectionItemId | null
 ```
 
-Selection is ephemeral UI state only.
+Selection is not persisted to DB, storage, `MapProjection`, PlayerKnowledge, ledger, or URL. Reload clears it.
 
-It is not persisted to:
+The island uses event delegation over the server-rendered SVG. It does not clone/rebuild map geometry.
 
-- PostgreSQL;
-- Supabase storage;
-- `MapProjection`;
-- PlayerKnowledge;
-- ledger;
-- URL/query state.
+## 10. Node interaction metadata
 
-Reload clears selection.
-
-## 10. Node interaction semantics
-
-Each authorized SVG node receives presentation metadata containing only its projection-local ID, for example:
+Each authorized SVG node group exposes only presentation-safe metadata:
 
 ```html
 data-player-node="true"
 data-node-id="<projection-local-id>"
 ```
 
-The ID is never a canonical location ID.
+No canonical ID is present.
 
-### 10.1 Activation
+The interactive group is keyboard focusable and uses `role="button"`.
 
-A node can be selected through:
+## 11. Activation and selection
 
-- pointer click;
-- touch-generated click/pointer activation;
-- Enter while the node is focused;
-- Space while the node is focused.
+Selection can be activated by:
 
-Activation resolves the ID only against the authorized `nodes` supplied to the client island.
+- pointer/click (including touch-generated activation);
+- Enter on focused node;
+- Space on focused node.
 
-If the ID is absent from that authorized list, the event is ignored/fails closed.
+The client extracts `data-node-id` and resolves it against the authorized `nodes` array supplied to `PlayerMapExplorer`.
 
-Unknown IDs never trigger a request.
+If the ID is missing or not in that authorized set:
 
-### 10.2 Repeated activation
+- ignore the event;
+- preserve the current valid selection exactly as-is;
+- do not issue any request.
 
-Activating the already-selected node keeps the same node selected. Selection does not toggle closed implicitly.
+Activating the already-selected node keeps it selected. Selection never toggles closed implicitly.
 
-This avoids hidden behavior differences between pointer and keyboard use.
+## 12. Selected-state reflection without client-rendering the SVG
 
-### 10.3 Closing
+Because the SVG remains server-rendered, `PlayerMapExplorer` reflects selection into existing node DOM attributes rather than converting `PlayerMapSvg` into a Client Component.
 
-The panel closes through:
+On selection change, the island updates only authorized node elements within its own root:
 
-- an explicit `Fechar` button;
-- Escape while focus is within the explorer interaction surface.
+- selected node: `data-selected="true"`, `aria-pressed="true"`;
+- other authorized nodes: remove/false selected state, `aria-pressed="false"`.
 
-Escape must not trigger navigation or a database request.
+This DOM synchronization is presentation-only. It may never alter geometry, labels, IDs, or hidden data.
 
-Closing does not alter player knowledge.
+The implementation must scope DOM lookup to the explorer root and match only the authorized projection-local IDs already held by the client.
 
-## 11. SVG accessibility model
+## 13. Closing/focus behavior
 
-The current SVG is a static image (`role="img"`). Once nodes become interactive, the root must no longer present the entire interactive surface as a single opaque image.
+Panel closes through:
 
-8E will change the root to an accessible named interactive map region/group appropriate for inline SVG, while preserving a clear accessible name.
+- explicit `Fechar` button;
+- Escape while focus is inside the explorer.
 
-Each selectable node receives:
+Opening the non-modal panel does not steal focus from the selected node.
 
-- keyboard focusability;
-- `role="button"` or an equivalent accessible interactive semantic proven by tests;
-- an accessible name derived only from authorized data.
+Escape closes while leaving the focused node usable.
 
-### 11.1 Node accessible names
+If the user closes through the panel button, focus returns to the previously selected node using only its projection-local ID, provided that node still exists in the explorer DOM. If it no longer exists, focus falls back to the explorer region without requesting data.
 
-If an authorized label exists, use it in the accessible name.
+Closing never changes PlayerKnowledge.
 
-If no authorized label exists, use a generic UI phrase such as `Local não identificado`.
+## 14. SVG accessibility model
 
-This generic phrase is presentation copy, not inferred world knowledge. It must not encode sequence numbers, hidden kind, canonical identity, or guessed location semantics.
+The root SVG changes from static `role="img"` to:
 
-Ghost state may append a generic presentation qualifier such as `localização aproximada` without exposing radius or coordinates.
+```html
+role="group"
+aria-label="Mapa de conhecimento do jogador"
+```
 
-### 11.2 Focus behavior
+This communicates a named interactive group rather than one opaque image.
 
-Opening a non-modal panel does not automatically steal focus from the selected node.
+Each selectable node group uses:
 
-This supports rapid keyboard exploration of multiple nodes.
+- `role="button"`;
+- `tabIndex=0`;
+- `aria-pressed="false|true"` synchronized by the client island;
+- an accessible name derived only from authorized projection data/generic UI copy.
 
-Escape closes the panel while preserving the explorer's usable focus state. If implementation moves focus into the panel for any reason, closing must restore focus to the selected node using only its projection-local ID.
+### Node accessible name
 
-## 12. Non-modal compact detail panel
+If authorized label exists: use it.
 
-The panel is not a modal dialog.
+If label is absent: use exactly the generic UI identity `Local não identificado`.
 
-It must not block interaction with the map.
+If node is a ghost, the accessible name may append `, localização aproximada`.
 
-Desktop layout: adjacent/lateral or lower panel inside the existing player map card.
+The fallback must not include projection ID, sequence number, hidden kind, guessed name, coordinates, or canonical identity.
 
-Narrow/mobile layout: stacked below the map.
+## 15. Compact non-modal panel
 
-The exact CSS layout may adapt to the existing Foundation card, but V0 must avoid fixed overlays that obscure the map or require precision tapping to dismiss.
+The panel is not a dialog/modal and does not block map interaction.
 
-### 12.1 V0 content
+Desktop: adjacent/lateral or lower area inside the player map card.
 
-The panel may display only:
+Narrow/mobile: stacked below the map.
 
-- authorized node label, if present;
-- generic unidentified-local fallback if label is absent;
-- authorized `detail.category`, if present;
-- knowledge state in a human-readable presentation form;
-- authorized `detail.summary`, if present;
-- generic `localização aproximada` indication for ghost nodes;
-- explicit close control.
+No fixed overlay is required in V0.
 
-The panel does not display:
+Panel content is limited to:
 
-- coordinates;
-- approximate radius number;
-- raw confidence percentage/value;
-- canonical IDs;
-- source IDs;
-- owner IDs;
-- database timestamps;
-- world payload.
+- authorized label, or generic `Local não identificado`;
+- authorized `detail.category`;
+- human-readable knowledge state;
+- authorized `detail.summary`;
+- generic `Localização aproximada` indicator for ghost nodes;
+- close button.
 
-Confidence/origin/freshness/privacy presentation belongs to a later cut.
+Do not display coordinates, approximate radius number, raw confidence value/percentage, canonical/source/owner IDs, DB timestamps, or world payload.
 
-## 13. Visual marker versus interaction target
+## 16. Visual marker versus hit target
 
-The existing visible node mark remains small and tied to world geometry.
+Visible node geometry remains tied to world units and retains existing known/ghost semantics.
 
-8E must not enlarge world geometry merely to create a comfortable touch target.
+A separate presentation-only hit element is centered on the already-authorized rendered node position.
 
-Instead, each selectable node receives a separate transparent/otherwise invisible interaction hit area.
+Preferred V0 mechanism to verify during implementation:
 
-Requirements:
+- an additional SVG circle inside the node group;
+- transparent fill/stroke presentation;
+- non-scaling stroke;
+- pointer-events configured on the hit shape;
+- effective target aiming at approximately 44 × 44 CSS px while leaving the visible mark unchanged.
 
-- visual node size remains unchanged unless a small focus/selected presentation treatment is needed;
-- hit area is presentation-only;
-- hit area does not participate in viewport bounds;
-- hit area does not represent uncertainty or knowledge precision;
-- target should aim for approximately 44 × 44 CSS px where technically practical;
-- hit area remains centered only on the already-authorized rendered node position;
-- no hidden geometry is used to place it.
+If browser/SVG behavior in tests makes that mechanism unreliable, the implementation plan may choose an equivalent minimal hit-target technique, but it may not move/reconstruct node position or enlarge viewport bounds.
 
-Implementation may use an SVG element with transparent fill/pointer behavior or an equivalent proven approach. The final mechanism must be tested for keyboard and pointer semantics.
+The hit element:
 
-## 14. Presentation states
+- is excluded from viewport calculation;
+- represents no world geometry/uncertainty;
+- cannot use hidden coordinates;
+- bubbles activation to the same authorized node group.
 
-Add explicit presentation-only states for:
+## 17. Presentation states
+
+Add presentation-only styles for:
 
 - hover;
-- focus-visible;
+- `focus-visible`;
 - selected.
 
-These styles must not imply additional knowledge precision.
+Selected/focus styling must not imply increased knowledge precision.
 
-Known versus ghost styling from 8C remains intact.
+Known/ghost styling from 8C and route-state styling from 8D remain intact.
 
-Route knowledge styles from 8D remain intact.
+## 18. No new network surface
 
-## 15. No new network surface
-
-Node selection must not introduce:
+Node interaction must not introduce:
 
 - `/api/node/:id`;
-- server actions that retrieve more node truth;
-- client Supabase queries;
-- fetch/XHR triggered by selection;
-- a request parameter containing a node identity for truth lookup.
+- server action for additional node truth;
+- client Supabase query;
+- fetch/XHR on select;
+- truth lookup keyed by node ID.
 
-The panel is entirely hydrated from already-authorized node data shipped with the rendered page.
+The panel is fully hydrated from authorized nodes already shipped with the page.
 
-This is a security requirement, not merely a performance optimization.
+This is a security requirement.
 
-## 16. Player-specific detail behavior
+## 19. Player-specific detail
 
-Two players may receive different `details` for the same canonical location because `player_api.map_nodes` is player-specific.
+Two players may receive different safe details for the same canonical location because `player_api.map_nodes` is owner-scoped.
 
-8E must preserve this property end to end:
+End-to-end proof must allow:
 
-- Player A may receive category/summary X;
-- Player B may receive category/summary Y or no detail;
-- neither receives the other's row through RLS/PostgREST;
-- neither can infer canonical linkage from player-local IDs.
+- Player A: detail X;
+- Player B: detail Y or absent;
+- A cannot read B's row;
+- B cannot read A's row;
+- local projection IDs do not reveal canonical linkage.
 
-## 17. Failure behavior
+## 20. Failure behavior
 
-### Projection source failure
+**Malformed source/detail:** projection fails closed; generic map unavailable UI.
 
-Malformed detail, malformed node row, database error, or projection validation error causes the existing sanitized unavailable state.
+**Unknown client node ID:** ignored; current valid selection remains unchanged; zero network activity.
 
-### Client selection failure
+**Valid node with no detail:** still selectable; panel uses only available authorized/generic fields.
 
-Unknown/missing projection-local ID is ignored and leaves the current valid state unchanged or closed. It never requests more data.
+**Unlabeled node:** never derive visible/accessibility identity from projection ID, kind, DB metadata, or canonical data.
 
-### Detail absent
+## 21. TDD test requirements
 
-A valid node with no detail remains fully selectable. The panel renders only the authorized/generic presentation fields available.
-
-### Label absent
-
-No label is synthesized from projection ID, node kind, database data, or canonical data. Only the generic unidentified-local UI copy may be used.
-
-## 18. Testing strategy
-
-Implementation follows TDD.
-
-### 18.1 Projection/domain tests
+### Projection/builder
 
 Prove:
 
-1. authorized `category` and `summary` are copied into `ProjectionNode.detail`;
-2. absent detail stays absent or empty according to the finalized builder contract;
-3. builder does not synthesize detail;
-4. existing route filtering and ghost behavior remain unchanged.
+1. valid category/summary reaches `ProjectionNode.detail`;
+2. `{}`/absent detail produces omitted `detail`;
+3. builder synthesizes nothing;
+4. route filtering and ghost behavior remain unchanged.
 
-### 18.2 World-schema tests
+### World-schema
 
 Prove:
 
 1. valid detail parses;
-2. unknown detail keys fail;
-3. nested/untyped detail fails;
-4. over-limit/empty values fail according to the final schema;
-5. all existing projection fixtures still validate when no detail is present.
+2. unknown keys fail;
+3. nested/untyped values fail;
+4. whitespace-only/over-limit fields fail;
+5. existing no-detail projections still parse.
 
-### 18.3 Projection source tests
+### Projection source
 
 Prove:
 
 1. `details` is selected from `player_api.map_nodes`;
-2. `{}` is valid;
-3. category-only, summary-only, and both fields are valid;
-4. arrays/null/non-object values fail;
-5. extra keys fail closed;
-6. over-limit/whitespace strings fail closed;
-7. raw errors remain sanitized by the home model;
-8. no world/private query is introduced.
+2. `{}`, category-only, summary-only and both valid;
+3. trim normalization is deterministic;
+4. null/array/non-object fail;
+5. extra key fails closed;
+6. invalid lengths/whitespace fail closed;
+7. raw errors remain sanitized by home model;
+8. no private/world query is introduced.
 
-### 18.4 Anti-leak tests
+### Anti-leak
 
-Prove forbidden keys remain rejected when attempted inside detail, including:
+Prove forbidden canonical/source/world/owner/payload aliases remain rejected under adversarial detail objects. Guard stays recursive.
 
-- canonical/source/world IDs;
-- secret payload aliases;
-- owner identity aliases.
-
-The guard must remain recursive.
-
-### 18.5 Renderer tests
+### Server renderer
 
 Prove:
 
-1. authorized projection-local node ID is rendered as interaction metadata;
+1. projection-local node ID appears only as interaction metadata;
 2. canonical IDs are absent;
-3. existing known/ghost geometry remains exact to supplied projection values;
-4. hit areas do not alter viewport calculations;
-5. unlabeled ghost does not expose projection ID as visible/accessibility identity;
-6. route rendering remains unchanged.
+3. root uses named `role="group"`;
+4. nodes expose button/focus semantics and generic safe fallback naming;
+5. supplied known/ghost geometry is unchanged;
+6. hit element does not participate in viewport calculation;
+7. route rendering remains unchanged.
 
-### 18.6 Client interaction tests
-
-Use the project's existing unit/component test stack; add DOM interaction tooling only if already available or if the implementation plan justifies the smallest necessary test dependency.
-
-Prove:
-
-1. pointer/click selects an authorized node;
-2. Enter selects focused node;
-3. Space selects focused node;
-4. selecting another node updates the same panel;
-5. repeated activation does not toggle closed;
-6. explicit close closes;
-7. Escape closes;
-8. unknown `data-node-id` does not select or fetch;
-9. node with no detail still opens a valid compact panel;
-10. ghost without label uses only generic UI copy;
-11. no network request is emitted by selection;
-12. accessible state/name attributes are coherent with selection.
-
-### 18.7 Database/PostgREST/Auth regression
+### Client explorer
 
 Prove:
 
-1. Player A sees only A's `map_nodes.details`;
-2. Player B sees only B's `map_nodes.details`;
-3. canonical location payload/secret payload does not appear automatically in player rows;
-4. direct PostgREST remains player-isolated;
-5. permanent Auth A/B smoke remains green;
-6. route knowledge 8D smokes remain green;
-7. existing DB/RLS suite remains green;
-8. generated database types remain drift-free.
+1. click selects authorized node;
+2. Enter selects;
+3. Space selects;
+4. another node updates same panel;
+5. repeated activation stays selected;
+6. `data-selected`/`aria-pressed` synchronize correctly;
+7. close button closes and restores focus to selected node when available;
+8. Escape closes without stealing/breaking node focus;
+9. unknown ID leaves current selection unchanged;
+10. unknown ID emits no fetch/network request;
+11. no-detail node opens a valid panel;
+12. unlabeled ghost uses only generic safe UI copy.
 
-No new database column is required merely for 8E because `player_api.map_nodes.details` already exists.
+### Database/PostgREST/Auth regression
 
-## 19. Expected file areas
+Prove:
 
-The implementation plan should verify exact paths before edits, but expected touched areas are:
+1. A sees only A's node detail;
+2. B sees only B's node detail;
+3. canonical payload/secret payload is not automatically reflected in details;
+4. direct PostgREST stays owner-isolated;
+5. permanent Auth A/B smoke stays green;
+6. 8D route leakage smokes stay green;
+7. DB/RLS tests stay green;
+8. generated DB types have no drift.
 
-- `packages/map-renderer/src/projection.ts`
-- `packages/map-renderer/src/player-projection.ts`
-- projection/builder safety tests
-- `packages/world-schema/src/schemas.ts`
-- world-schema tests
-- `apps/player/lib/map/player-projection-source.ts`
-- projection source tests
-- `apps/player/app/player-map-svg.tsx`
-- renderer tests
-- new minimal client explorer/detail component and tests under `apps/player/app/`
-- `apps/player/app/page.tsx`
-- `apps/player/app/globals.css`
-- seed/DB smoke fixtures only if needed to prove player-specific detail behavior
-- status/progress docs after technical evidence is green.
+No DB column is required solely for 8E because `player_api.map_nodes.details` already exists.
 
-## 20. Security acceptance criteria
+## 22. Expected implementation areas
 
-8E cannot close unless all are true:
+Implementation plan must verify exact files, but expected areas are:
 
-1. Clicking/touching/focusing a node never grants more data than the initial authorized page projection.
-2. Client selection uses only projection-local IDs.
-3. No canonical/world/source ID enters the detail contract.
-4. No private canonical payload is automatically copied into player detail.
-5. `details` is parsed strictly and fails closed on unexpected shape.
-6. `MapProjection` schema remains strict.
-7. Recursive anti-leak validation remains active.
-8. Direct PostgREST remains safe if React/client JavaScript is bypassed.
-9. Player A/B details remain isolated.
-10. Renderer/client code does not query `world_private` or use service-role credentials.
-11. Existing 8B–8D security smokes remain green.
+- `packages/map-renderer/src/projection.ts`;
+- `packages/map-renderer/src/player-projection.ts` + tests;
+- `packages/map-renderer/src/projection-safety*` tests;
+- `packages/world-schema/src/schemas.ts` + tests;
+- `apps/player/lib/map/player-projection-source.ts` + tests;
+- `apps/player/app/player-map-svg.tsx` + tests;
+- new minimal `apps/player/app/player-map-explorer.tsx` + interaction tests;
+- `apps/player/app/page.tsx`;
+- `apps/player/app/globals.css`;
+- seed/DB smoke fixtures only where required for player-specific detail proof;
+- status/progress docs only after technical green evidence.
 
-## 21. UX/accessibility acceptance criteria
+The implementation plan must inspect the existing test dependencies before adding any DOM-testing package. No dependency is added merely because the design names an interaction test.
 
-8E cannot close unless all are true:
+## 23. Security acceptance gate
 
-1. Node can be activated with pointer/touch, Enter, and Space.
-2. Node is keyboard focusable with visible focus state.
-3. Selection is visibly distinguishable without changing knowledge precision.
-4. Panel is non-modal and usable on narrow layouts.
-5. Explicit close exists.
-6. Escape closes selection.
-7. Node without detail remains usable.
-8. Unlabeled node does not leak an identifier as its display/accessibility name.
-9. Interaction target is larger than the visible mark without changing world geometry.
-10. Existing map empty/unavailable states remain correct.
+8E cannot close unless:
 
-## 22. Verification gate
+1. node interaction grants no data beyond initial authorized projection;
+2. client selection uses only projection-local IDs;
+3. no canonical/world/source ID enters detail contract;
+4. no canonical private payload is auto-copied to detail;
+5. details parser is strict/fail-closed;
+6. `MapProjection` schema remains strict;
+7. recursive anti-leak guard remains active;
+8. direct PostgREST remains safe if React is bypassed;
+9. A/B detail isolation is proven;
+10. renderer/client does not query `world_private` or use service role;
+11. 8B–8D permanent security smokes remain green.
 
-Final branch evidence must include, on one final head:
+## 24. UX/accessibility acceptance gate
 
-- format check green;
-- lint green;
-- typecheck green;
-- all unit/component tests green;
-- production build green;
-- database/RLS tests green;
-- PostgREST leakage smoke green;
-- real Auth A/B smoke green;
-- 8D route leakage guarantees still green;
-- generated database types with no drift.
+8E cannot close unless:
 
-Only then may 8E be marked technically green, status docs updated, Drive synchronized, and a dedicated draft/open/unmerged PR created.
+1. pointer/touch, Enter and Space activate nodes;
+2. nodes are keyboard focusable with visible focus state;
+3. selected state is visible and reflected in `aria-pressed`;
+4. panel is non-modal and works in narrow layout;
+5. explicit close exists;
+6. Escape closes;
+7. no-detail node remains usable;
+8. unlabeled node never leaks an identifier as name;
+9. hit target is larger than visible mark without changing world geometry/viewport;
+10. existing empty/unavailable states remain correct.
 
-No merge or deploy is part of 8E closure.
+## 25. Verification gate
 
-## 23. Next cut after 8E
+One final head must pass:
 
-After 8E is green, the next Phase 8 cut should extend the already-safe detail/presentation surface with confidence/origin/freshness/privacy semantics, without rebuilding node selection or weakening `MapProjection`.
+- format check;
+- lint;
+- typecheck;
+- all unit/component tests;
+- production build;
+- DB/RLS tests;
+- PostgREST leakage smoke;
+- real Auth A/B smoke;
+- 8D route leakage guarantees;
+- generated DB types no drift.
+
+Only after that may status docs/Drive be synchronized and a dedicated PR be created as draft/open/unmerged.
+
+No merge or deploy belongs to 8E closure.
+
+## 26. Next cut
+
+After 8E is green, the next Phase 8 cut extends this same safe detail/presentation surface with confidence/origin/freshness/privacy semantics. Node selection must not be rebuilt or given additional world-truth authority.
