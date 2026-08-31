@@ -75,14 +75,15 @@ export function calculatePlayerSvgViewport(
   }
 
   const points = collectRenderablePoints(projection);
-  if (points.length === 0) {
+  const [firstPoint] = points;
+  if (!firstPoint) {
     return { ...FALLBACK_VIEWPORT };
   }
 
-  let minX = points[0].x;
-  let maxX = points[0].x;
-  let minY = points[0].y;
-  let maxY = points[0].y;
+  let minX = firstPoint.x;
+  let maxX = firstPoint.x;
+  let minY = firstPoint.y;
+  let maxY = firstPoint.y;
 
   for (const point of points.slice(1)) {
     minX = Math.min(minX, point.x);
