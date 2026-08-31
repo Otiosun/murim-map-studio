@@ -1,7 +1,7 @@
 # Player Route Knowledge V0 — Gate 8D Design
 
 Date: 2026-08-31
-Status: Design approved in chat; implementation not started
+Status: Design approved in chat; written spec awaiting human review
 Branch: `foundation/player-route-knowledge-v0`
 Base: `68bdd424348822e297ad4803367a16243dddb070`
 
@@ -31,7 +31,7 @@ The V0 goal is therefore:
   - `investigated`
   - `understood`
 - private per-player route-knowledge truth;
-- safe materialization into `player_api.map_routes`;
+- safe database-owned materialization into `player_api.map_routes`;
 - safe exact-vs-topological route geometry selection;
 - renderer presentation by knowledge state;
 - unit, database/RLS, PostgREST leakage and Auth A/B tests;
@@ -65,7 +65,8 @@ All 8B security invariants remain permanent and 8D adds route-specific invariant
 7. A route cannot reveal more positional precision than either endpoint already authorizes.
 8. If any required authorization precondition is absent, the route fails closed.
 9. Direct PostgREST access to `player_api.map_routes` must remain safe even if the React application is bypassed completely.
-10. Raw source/database errors never surface in player UI.
+10. Route labels and details exposed to the player must be independently authorized; they are never copied automatically from canonical route name/payload fields.
+11. Raw source/database errors never surface in player UI.
 
 ## 4. Chosen architecture
 
@@ -79,13 +80,14 @@ It is conceptually parallel to `world_private.player_location_knowledge` and rec
 
 The V0 row must contain the minimum required facts:
 
-- `owner_user_id`
-- canonical private route reference
-- player-local `projection_id`
-- `state`
-- `confidence`
-- origin metadata consistent with existing knowledge patterns
-- learned/refreshed timestamps
+- `owner_user_id`;
+- canonical private route reference;
+- player-local `projection_id`;
+- `state`;
+- `confidence`;
+- origin metadata consistent with existing knowledge patterns;
+- nullable player-safe `projection_label` that is explicitly authorized for presentation;
+- learned/refreshed timestamps.
 
 The exact SQL column names and constraints may follow established migration conventions, but the semantics above are mandatory.
 
@@ -104,9 +106,30 @@ It must continue to expose only player-local projection identifiers and sanitize
 - source/private foreign keys;
 - geometry with more precision than the player is authorized to know.
 
+For 8D, `label` comes only from the explicitly authorized private `projection_label`; the materializer never derives it from `world_private.routes.name`.
+
+For 8D, `details` remains empty/safe by default and must never copy `world_private.routes.payload`, `secret_payload`, origin metadata, or other private fields. Richer player-facing route facts are deferred to later cuts.
+
 The route projection source in the application remains a consumer/validator of `player_api`; it is not promoted into the primary secret-sanitization layer.
 
-### 4.3 Exact-vs-topological geometry rule
+### 4.3 Database-owned materialization boundary
+
+A dedicated private database routine owns route materialization. The planned V0 contract is a function equivalent to:
+
+`world_private.refresh_player_route_projection(p_owner_user_id uuid)`
+
+Exact SQL syntax is an implementation detail, but these properties are mandatory:
+
+- it executes in a trusted database/service-role context, not from browser/player code;
+- `EXECUTE` is revoked from `public`, `anon`, and `authenticated` and granted only to `service_role`;
+- it does not need `SECURITY DEFINER` because `service_role` already owns the required private/public projection privileges; prefer normal invoker semantics to reduce privilege surface;
+- it recomputes the selected player's `player_api.map_routes` rows transactionally from private route knowledge plus already-sanitized endpoint projection state;
+- it is the sole 8D path that converts canonical route truth into player-facing route geometry;
+- application/player code never performs a second, secret-aware sanitization pass.
+
+Trusted future narrator/admin mutation flows may invoke this routine after knowledge changes. Seed/tests may invoke it explicitly. Automatic trigger orchestration is intentionally not introduced in 8D because node and route knowledge can change independently and trigger coupling would add unnecessary complexity.
+
+### 4.4 Exact-vs-topological geometry rule
 
 Knowledge states are divided into two geometry classes.
 
@@ -141,7 +164,7 @@ If either endpoint is a ghost/approximate node, the route falls back to the same
 
 This means route knowledge state and spatial precision are deliberately independent concepts. A player may know that a route is confirmed without knowing its exact geometry.
 
-### 4.4 Endpoint presence rule
+### 4.5 Endpoint presence rule
 
 A projected route is included only when both endpoint projection IDs are present in the same authorized player projection.
 
@@ -151,7 +174,7 @@ Unknown-endpoint routes are intentionally deferred to a later contract rather th
 
 ## 5. MapProjection contract
 
-The V0 should preserve the current renderer-facing route shape as much as practical:
+The V0 preserves the current renderer-facing route shape as much as practical:
 
 - `ProjectionRoute.path` remains present for rendered routes;
 - renderer does not receive canonical/private source identifiers;
@@ -173,14 +196,15 @@ The mandatory flow is:
 
 1. canonical route truth exists only in `world_private`;
 2. per-player route knowledge exists in `world_private.player_route_knowledge`;
-3. server/database projection logic determines whether a route is visible;
-4. server/database projection logic determines whether public geometry is exact or topological;
-5. only sanitized rows reach `player_api.map_routes`;
-6. RLS limits those rows to the authenticated owner;
-7. the application projection source loads `player_api` rows with the request-scoped player session;
-8. parsing/building produces `MapProjection`;
-9. anti-leak validation runs before presentation;
-10. the server SVG renderer draws the supplied route without private-world access.
+3. trusted server/admin mutation logic changes private knowledge when appropriate;
+4. the private database materialization routine determines whether each route is visible and whether its public geometry is exact or topological;
+5. topological geometry is built only from already-sanitized endpoint projection positions;
+6. only sanitized rows are written to `player_api.map_routes`;
+7. RLS limits those rows to the authenticated owner;
+8. the application projection source loads `player_api` rows with the request-scoped player session;
+9. parsing/building produces `MapProjection`;
+10. anti-leak validation runs before presentation;
+11. the server SVG renderer draws the supplied route without private-world access.
 
 No security decision is delegated to CSS or to client-side rendering.
 
@@ -214,6 +238,7 @@ Examples:
 - low-state route unexpectedly associated with canonical geometry at the public boundary → test failure and no accepted implementation;
 - high-state route with a ghost endpoint → topological fallback;
 - projection parsing failure → existing safe unavailable behavior;
+- materialization failure → transaction rolls back rather than leaving a mixed partially refreshed route set;
 - source/database errors → generic player-safe unavailable state, never raw database content.
 
 ## 9. Testing strategy
@@ -251,6 +276,10 @@ Prove at minimum:
 - confirmed+ with exact endpoints may expose exact geometry;
 - confirmed+ with an approximate endpoint receives safe fallback;
 - route with missing endpoint projection is absent;
+- route label is only the explicitly authorized projection label, never the canonical route name by default;
+- route details contain no canonical/private payload leakage;
+- `authenticated` cannot execute the private materialization routine;
+- `service_role` can execute the materialization routine;
 - unauthorized user/session cannot cross owner boundaries.
 
 ### 9.4 Direct PostgREST leakage smoke
@@ -258,6 +287,8 @@ Prove at minimum:
 The permanent smoke suite must directly query the exposed `player_api.map_routes` surface and demonstrate that bypassing the React app still cannot retrieve canonical low-state route geometry.
 
 The smoke should compare player sessions A/B and include the adversarial canonical intermediate point described above.
+
+It must also verify that canonical identifiers, canonical route labels/private payloads and the private materialization function are not available through the authenticated player surface.
 
 ### 9.5 Regression suite
 
@@ -280,20 +311,21 @@ The existing permanent checks remain required:
 8D is technically green only when all of the following are true on the final documented head:
 
 1. private route knowledge model exists and is migration-backed;
-2. low-state public route geometry is provably non-canonical;
-3. high-state exact geometry requires exact authorized endpoints;
-4. ghost endpoint forces topological fallback;
-5. missing endpoint suppresses route;
-6. player A/B isolation is proven;
-7. direct PostgREST route leakage test is green;
-8. canonical IDs remain absent from player-facing route contracts;
-9. renderer visually distinguishes knowledge states without owning authorization logic;
-10. all pre-existing 8B/8C security/regression checks remain green;
-11. project status docs record the final head and CI evidence;
-12. Drive canonical progress is updated only after technical evidence exists;
-13. PR is draft/open/unmerged;
-14. no deploy occurs;
-15. Gate 8 remains open and the next planned cut is 8E — compact/touch node details.
+2. private service-role-only materialization routine owns canonical-to-player route projection;
+3. low-state public route geometry is provably non-canonical;
+4. high-state exact geometry requires exact authorized endpoints;
+5. ghost endpoint forces topological fallback;
+6. missing endpoint suppresses route;
+7. player A/B isolation is proven;
+8. direct PostgREST route leakage test is green;
+9. canonical IDs, canonical labels and private payloads remain absent from player-facing route contracts;
+10. renderer visually distinguishes knowledge states without owning authorization logic;
+11. all pre-existing 8B/8C security/regression checks remain green;
+12. project status docs record the final head and CI evidence;
+13. Drive canonical progress is updated only after technical evidence exists;
+14. PR is draft/open/unmerged;
+15. no deploy occurs;
+16. Gate 8 remains open and the next planned cut is 8E — compact/touch node details.
 
 ## 11. Extensibility
 
