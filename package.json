@@ -12,7 +12,7 @@
     "build": "turbo build",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "format:check": "prettier --write docs/superpowers/specs/2026-08-30-player-svg-renderer-design.md docs/superpowers/plans/2026-08-30-player-svg-renderer.md && git diff --no-ext-diff -- docs/superpowers/specs/2026-08-30-player-svg-renderer-design.md docs/superpowers/plans/2026-08-30-player-svg-renderer.md && false",
+    "format:check": "prettier --check .",
     "typecheck": "turbo typecheck",
     "test": "vitest run --passWithNoTests",
     "test:e2e": "node scripts/e2e-not-enabled.mjs",

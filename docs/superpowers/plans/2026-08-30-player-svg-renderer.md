@@ -45,11 +45,13 @@
 ### Task 1: Deterministic world-unit viewport
 
 **Files:**
+
 - Create: `packages/map-renderer/src/player-viewport.ts`
 - Create: `packages/map-renderer/src/player-viewport.test.ts`
 - Modify: `packages/map-renderer/src/index.ts`
 
 **Interfaces:**
+
 - Consumes: `MapProjection`, `ProjectionNode`, and `ProjectionRoute` from `./projection`.
 - Produces:
   ```ts
@@ -93,17 +95,35 @@ describe('calculatePlayerSvgViewport', () => {
   it('includes negative/fractional node coordinates and every route point', () => {
     const projection = baseProjection([
       {
-        id: 'node:a', kind: 'node', metadata: {}, role: 'known', symbolKey: 'node:known',
+        id: 'node:a',
+        kind: 'node',
+        metadata: {},
+        role: 'known',
+        symbolKey: 'node:known',
         position: { x: -10.5, y: 4.25 },
       },
       {
-        id: 'node:b', kind: 'node', metadata: {}, role: 'known', symbolKey: 'node:known',
+        id: 'node:b',
+        kind: 'node',
+        metadata: {},
+        role: 'known',
+        symbolKey: 'node:known',
         position: { x: 25.75, y: 40.5 },
       },
       {
-        id: 'route:r', kind: 'route', metadata: {}, fromItemId: 'node:a', toItemId: 'node:b',
+        id: 'route:r',
+        kind: 'route',
+        metadata: {},
+        fromItemId: 'node:a',
+        toItemId: 'node:b',
         styleKey: 'route:confirmed',
-        path: { kind: 'polyline', points: [{ x: -30.25, y: 1.5 }, { x: 50.5, y: 60.75 }] },
+        path: {
+          kind: 'polyline',
+          points: [
+            { x: -30.25, y: 1.5 },
+            { x: 50.5, y: 60.75 },
+          ],
+        },
       },
     ]);
 
@@ -117,14 +137,24 @@ describe('calculatePlayerSvgViewport', () => {
   });
 
   it('expands ghost bounds by authorized uncertainty radius', () => {
-    const projection = baseProjection([{
-      id: 'node:g', kind: 'node', metadata: {}, role: 'ghost', symbolKey: 'node:ghost',
-      position: { x: 12, y: 20 },
-      approximateLocation: { center: { x: 12, y: 20 }, radius: 5 },
-    }]);
+    const projection = baseProjection([
+      {
+        id: 'node:g',
+        kind: 'node',
+        metadata: {},
+        role: 'ghost',
+        symbolKey: 'node:ghost',
+        position: { x: 12, y: 20 },
+        approximateLocation: { center: { x: 12, y: 20 }, radius: 5 },
+      },
+    ]);
 
     expect(calculatePlayerSvgViewport(projection, 0)).toEqual({
-      minX: 7, minY: 15, width: 10, height: 10, viewBox: '7 15 10 10',
+      minX: 7,
+      minY: 15,
+      width: 10,
+      height: 10,
+      viewBox: '7 15 10 10',
     });
   });
 
@@ -132,15 +162,25 @@ describe('calculatePlayerSvgViewport', () => {
     const projection = baseProjection([]);
     expect(hasRenderablePlayerMapGeometry(projection)).toBe(false);
     expect(calculatePlayerSvgViewport(projection)).toEqual({
-      minX: -50, minY: -50, width: 100, height: 100, viewBox: '-50 -50 100 100',
+      minX: -50,
+      minY: -50,
+      width: 100,
+      height: 100,
+      viewBox: '-50 -50 100 100',
     });
   });
 
   it('expands a single point to finite non-zero dimensions', () => {
-    const projection = baseProjection([{
-      id: 'node:a', kind: 'node', metadata: {}, role: 'known', symbolKey: 'node:known',
-      position: { x: 2, y: 3 },
-    }]);
+    const projection = baseProjection([
+      {
+        id: 'node:a',
+        kind: 'node',
+        metadata: {},
+        role: 'known',
+        symbolKey: 'node:known',
+        position: { x: 2, y: 3 },
+      },
+    ]);
     const viewport = calculatePlayerSvgViewport(projection, 0);
     expect(viewport.width).toBe(1);
     expect(viewport.height).toBe(1);
@@ -149,10 +189,16 @@ describe('calculatePlayerSvgViewport', () => {
   });
 
   it('does not mutate the projection', () => {
-    const projection = baseProjection([{
-      id: 'node:a', kind: 'node', metadata: {}, role: 'known', symbolKey: 'node:known',
-      position: { x: 2, y: 3 },
-    }]);
+    const projection = baseProjection([
+      {
+        id: 'node:a',
+        kind: 'node',
+        metadata: {},
+        role: 'known',
+        symbolKey: 'node:known',
+        position: { x: 2, y: 3 },
+      },
+    ]);
     const before = structuredClone(projection);
     calculatePlayerSvgViewport(projection);
     expect(projection).toEqual(before);
@@ -229,10 +275,12 @@ git commit -m "feat: add player map viewport model"
 ### Task 2: Accessible server-rendered SVG component
 
 **Files:**
+
 - Create: `apps/player/app/player-map-svg.tsx`
 - Create: `apps/player/app/player-map-svg.test.tsx`
 
 **Interfaces:**
+
 - Consumes: `MapProjection`, `calculatePlayerSvgViewport`, `hasRenderablePlayerMapGeometry` from `@murim/map-renderer`.
 - Produces:
   ```ts
@@ -263,16 +311,38 @@ const projection: MapProjection = {
   generatedAt: '2026-08-30T00:00:00.000Z',
   items: [
     {
-      id: 'node:known', kind: 'node', metadata: {}, role: 'known', symbolKey: 'node:known',
-      label: 'Vila', position: { x: 10, y: 20 }, knowledgeState: 'confirmed',
+      id: 'node:known',
+      kind: 'node',
+      metadata: {},
+      role: 'known',
+      symbolKey: 'node:known',
+      label: 'Vila',
+      position: { x: 10, y: 20 },
+      knowledgeState: 'confirmed',
     },
     {
-      id: 'node:ghost', kind: 'node', metadata: {}, role: 'ghost', symbolKey: 'node:ghost',
-      position: { x: 40, y: 50 }, approximateLocation: { center: { x: 40, y: 50 }, radius: 8 },
+      id: 'node:ghost',
+      kind: 'node',
+      metadata: {},
+      role: 'ghost',
+      symbolKey: 'node:ghost',
+      position: { x: 40, y: 50 },
+      approximateLocation: { center: { x: 40, y: 50 }, radius: 8 },
     },
     {
-      id: 'route:r', kind: 'route', metadata: {}, fromItemId: 'node:known', toItemId: 'node:ghost',
-      styleKey: 'route:rumor', path: { kind: 'polyline', points: [{ x: 10, y: 20 }, { x: 40, y: 50 }] },
+      id: 'route:r',
+      kind: 'route',
+      metadata: {},
+      fromItemId: 'node:known',
+      toItemId: 'node:ghost',
+      styleKey: 'route:rumor',
+      path: {
+        kind: 'polyline',
+        points: [
+          { x: 10, y: 20 },
+          { x: 40, y: 50 },
+        ],
+      },
     },
   ],
 };
@@ -358,11 +428,13 @@ git commit -m "feat: render player projection as svg"
 ### Task 3: Authenticated player-page projection composition
 
 **Files:**
+
 - Create: `apps/player/lib/map/player-home-model.ts`
 - Create: `apps/player/lib/map/player-home-model.test.ts`
 - Modify: `apps/player/app/page.tsx`
 
 **Interfaces:**
+
 - Consumes existing:
   ```ts
   export interface PlayerProjectionSource {
@@ -399,13 +471,22 @@ const projection = (items: MapProjection['items']): MapProjection => ({
 });
 
 it('loads projection with exactly the resolved session player id', async () => {
-  const value = projection([{
-    id: 'node:a', kind: 'node', metadata: {}, role: 'known', symbolKey: 'node:known',
-    position: { x: 1, y: 2 },
-  }]);
+  const value = projection([
+    {
+      id: 'node:a',
+      kind: 'node',
+      metadata: {},
+      role: 'known',
+      symbolKey: 'node:known',
+      position: { x: 1, y: 2 },
+    },
+  ]);
   const load = vi.fn().mockResolvedValue(value);
   const source: PlayerProjectionSource = { load };
-  await expect(loadPlayerHomeMap(source, 'player-session-id')).resolves.toEqual({ status: 'ready', projection: value });
+  await expect(loadPlayerHomeMap(source, 'player-session-id')).resolves.toEqual({
+    status: 'ready',
+    projection: value,
+  });
   expect(load).toHaveBeenCalledWith('player-session-id');
   expect(load).toHaveBeenCalledTimes(1);
 });
@@ -413,7 +494,10 @@ it('loads projection with exactly the resolved session player id', async () => {
 it('distinguishes a valid empty projection', async () => {
   const value = projection([]);
   const source: PlayerProjectionSource = { load: vi.fn().mockResolvedValue(value) };
-  await expect(loadPlayerHomeMap(source, 'player-a')).resolves.toEqual({ status: 'empty', projection: value });
+  await expect(loadPlayerHomeMap(source, 'player-a')).resolves.toEqual({
+    status: 'empty',
+    projection: value,
+  });
 });
 
 it('sanitizes projection source failures', async () => {
@@ -471,7 +555,10 @@ if (!session) redirect('/login');
 After that, create the source using the same already-created server client:
 
 ```ts
-const mapState = await loadPlayerHomeMap(createSupabasePlayerProjectionSource(supabase), session.playerId);
+const mapState = await loadPlayerHomeMap(
+  createSupabasePlayerProjectionSource(supabase),
+  session.playerId,
+);
 ```
 
 Render within the existing authenticated shell:
@@ -510,10 +597,12 @@ git commit -m "feat: load authorized map on player home"
 ### Task 4: Foundation presentation and Gate 8C verification
 
 **Files:**
+
 - Modify: `apps/player/app/globals.css`
 - Modify only if evidence requires: implementation/tests from Tasks 1–3
 
 **Interfaces:**
+
 - No new domain interfaces.
 - CSS consumes existing classes/data attributes only.
 
