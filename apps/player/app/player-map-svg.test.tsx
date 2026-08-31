@@ -87,16 +87,22 @@ describe('PlayerMapSvg', () => {
     expect(html).toContain('role="button"');
     expect(html).toContain('tabindex="0"');
     expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('data-node-selected="false"');
     expect(html).toContain('aria-controls="player-node-detail-panel"');
     expect(html).toContain('aria-label="Vila"');
     expect(html).toContain('aria-label="Local não identificado, localização aproximada"');
   });
 
-  it('renders a separate presentation-only pointer hit target for every node', () => {
+  it('renders canonical presentation-only hit targets and visible markers for every node', () => {
     const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
-    const targetMatches = html.match(/data-node-interaction-target="true"/g) ?? [];
+    const legacyTargetMatches = html.match(/data-node-interaction-target="true"/g) ?? [];
+    const targetMatches = html.match(/data-node-hit-target="true"/g) ?? [];
+    const markerMatches = html.match(/data-node-marker="true"/g) ?? [];
 
+    expect(legacyTargetMatches).toHaveLength(2);
     expect(targetMatches).toHaveLength(2);
+    expect(markerMatches).toHaveLength(2);
+    expect(html).toContain('class="player-node-hit-target"');
   });
 
   it('exposes all six route knowledge states as presentation metadata', () => {
