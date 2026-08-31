@@ -2,6 +2,7 @@ import {
   calculatePlayerSvgViewport,
   hasRenderablePlayerMapGeometry,
   type MapProjection,
+  type ProjectionNode,
 } from '@murim/map-renderer';
 
 export interface PlayerMapSvgProps {
@@ -11,7 +12,19 @@ export interface PlayerMapSvgProps {
 
 const DEFAULT_ACCESSIBLE_NAME = 'Mapa de conhecimento do jogador';
 const NODE_RADIUS = 2;
+const NODE_INTERACTION_RADIUS = 6;
 const LABEL_OFFSET = 3;
+const NODE_DETAIL_PANEL_ID = 'player-node-detail-panel';
+
+function getNodeAccessibleLabel(node: ProjectionNode) {
+  if (node.label) {
+    return node.label;
+  }
+
+  return node.role === 'ghost'
+    ? 'Local não identificado, localização aproximada'
+    : 'Local conhecido';
+}
 
 export function PlayerMapSvg({
   projection,
@@ -34,7 +47,7 @@ export function PlayerMapSvg({
       aria-label={accessibleName}
       className="player-map-svg"
       preserveAspectRatio="xMidYMid meet"
-      role="img"
+      role="group"
       viewBox={viewport.viewBox}
     >
       <g aria-hidden="true" data-map-layer="routes">
@@ -79,7 +92,24 @@ export function PlayerMapSvg({
               : node.position;
 
           return (
-            <g data-node-role={node.role} key={node.id}>
+            <g
+              aria-controls={NODE_DETAIL_PANEL_ID}
+              aria-label={getNodeAccessibleLabel(node)}
+              aria-pressed="false"
+              data-node-id={node.id}
+              data-node-role={node.role}
+              data-player-node="true"
+              key={node.id}
+              role="button"
+              tabIndex={0}
+            >
+              <circle
+                aria-hidden="true"
+                cx={position.x}
+                cy={position.y}
+                data-node-interaction-target="true"
+                r={NODE_INTERACTION_RADIUS}
+              />
               <circle
                 aria-hidden="true"
                 cx={position.x}
