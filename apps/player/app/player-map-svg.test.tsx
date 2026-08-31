@@ -65,15 +65,38 @@ const projection: MapProjection = {
 };
 
 describe('PlayerMapSvg', () => {
-  it('renders accessible SVG, authorized labels, route geometry and distinct known/ghost states', () => {
+  it('renders an accessible interactive map group instead of one opaque image', () => {
     const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
 
     expect(html).toContain('<svg');
     expect(html).toContain('aria-label="Mapa de conhecimento do jogador"');
+    expect(html).toContain('role="group"');
+    expect(html).not.toContain('role="img"');
     expect(html).toContain('data-node-role="known"');
     expect(html).toContain('data-node-role="ghost"');
     expect(html).toContain('data-uncertainty="true"');
     expect(html).toContain('Vila');
+  });
+
+  it('exposes only projection-local node ids as focusable button metadata', () => {
+    const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
+
+    expect(html).toContain('data-player-node="true"');
+    expect(html).toContain('data-node-id="node:known"');
+    expect(html).toContain('data-node-id="node:ghost"');
+    expect(html).toContain('role="button"');
+    expect(html).toContain('tabindex="0"');
+    expect(html).toContain('aria-pressed="false"');
+    expect(html).toContain('aria-controls="player-node-detail-panel"');
+    expect(html).toContain('aria-label="Vila"');
+    expect(html).toContain('aria-label="Local não identificado, localização aproximada"');
+  });
+
+  it('renders a separate presentation-only pointer hit target for every node', () => {
+    const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
+    const targetMatches = html.match(/data-node-interaction-target="true"/g) ?? [];
+
+    expect(targetMatches).toHaveLength(2);
   });
 
   it('exposes all six route knowledge states as presentation metadata', () => {
@@ -90,10 +113,11 @@ describe('PlayerMapSvg', () => {
     expect(html).toContain('points="10,20 25,5 40,50"');
   });
 
-  it('does not invent a label for unlabeled projection items', () => {
+  it('does not invent a visible label or expose a projection id for an unlabeled ghost', () => {
     const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
 
     expect(html).not.toContain('node:ghost</text>');
+    expect(html).not.toContain('>node:ghost<');
   });
 
   it('renders a semantic empty state instead of an empty svg', () => {
