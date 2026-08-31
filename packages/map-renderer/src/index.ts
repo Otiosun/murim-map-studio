@@ -1,4 +1,5 @@
 export * from './player-projection';
+export * from './player-viewport';
 export * from './projection';
 export * from './projection-safety';
 
