@@ -211,7 +211,9 @@ input {
   outline: none;
 }
 
+.player-map-svg [data-player-node='true']:hover [data-node-marker='true'],
 .player-map-svg [data-player-node='true']:focus-visible [data-node-marker='true'],
+.player-map-svg [data-player-node='true'][data-selected='true'] [data-node-marker='true'],
 .player-map-svg [data-player-node='true'][data-node-selected='true'] [data-node-marker='true'] {
   stroke: currentColor;
   stroke-width: 2.5;
