@@ -230,20 +230,25 @@ declare
   v_knowledge world_private.player_location_knowledge%rowtype;
   v_current_world_minute bigint;
 begin
-  select knowledge.*,
-         world.current_world_minute
-    into v_knowledge,
-         v_current_world_minute
-    from world_private.player_location_knowledge as knowledge
-    join world_private.locations as location
-      on location.id = knowledge.source_location_id
-    join world_private.worlds as world
-      on world.id = location.world_id
-   where knowledge.owner_user_id = p_owner_user_id
-     and knowledge.source_location_id = p_source_location_id;
+  select *
+    into v_knowledge
+    from world_private.player_location_knowledge
+   where owner_user_id = p_owner_user_id
+     and source_location_id = p_source_location_id;
 
   if not found then
     raise exception using errcode = 'P0002', message = 'location_knowledge_not_found';
+  end if;
+
+  select world.current_world_minute
+    into v_current_world_minute
+    from world_private.locations as location
+    join world_private.worlds as world
+      on world.id = location.world_id
+   where location.id = p_source_location_id;
+
+  if not found then
+    raise exception using errcode = 'P0002', message = 'world_not_found';
   end if;
 
   update player_api.map_nodes
