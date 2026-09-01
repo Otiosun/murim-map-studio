@@ -85,6 +85,7 @@ export function PlayerMapExplorer({ nodes, children }: PlayerMapExplorerProps) {
       const selected =
         id !== null && authorizedNodes.has(id) && selectedNodeId !== null && id === selectedNodeId;
       element.setAttribute('aria-pressed', selected ? 'true' : 'false');
+      element.setAttribute('data-selected', selected ? 'true' : 'false');
       element.setAttribute('data-node-selected', selected ? 'true' : 'false');
     }
   }, [authorizedNodes, selectedNodeId]);
