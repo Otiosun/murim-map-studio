@@ -20,7 +20,7 @@
 - Raw numeric confidence remains private and disappears from player-readable `player_api` plus serialized Player `MapProjection`.
 - Confidence bands are exactly `low | moderate | high | very-high` for `[0,.40)`, `[.40,.70)`, `[.70,.90)`, `[.90,1]`.
 - Source kinds are exactly `system | exploration | npc | player | document | scene`.
-- `origin_label` becomes player-visible only when private state explicitly marks that source identity known to the character.
+- `origin_label` is the already-player-known display label; `NULL` means category-only and hidden source identities must live in separate private-only data.
 - Safe source labels are trimmed plain text, non-empty when present, maximum 120 Unicode code points. IDs are never used as fallback labels.
 - Freshness is exactly `just-updated | recent | aging | stale | not-applicable` and derives only from world minutes.
 - `learned_at`, `refreshed_at`, JavaScript `Date`, request time and wall-clock time never determine narrative freshness.
@@ -79,13 +79,15 @@ The existing `supabase/migrations/20260831062000_player_route_knowledge_v0.sql` 
 ### Task 1: Add narrative-time and private metadata primitives
 
 **Files:**
+
 - Create: `supabase/migrations/20260901043000_player_knowledge_metadata_v0.sql`
 - Create: `supabase/tests/database/player_knowledge_metadata.test.sql`
 - Modify: `supabase/seed.sql`
 
 **Interfaces:**
+
 - Produces `world_private.worlds.current_world_minute`.
-- Produces `origin_label_known`, `learned_world_minute`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy` on both private knowledge tables.
+- Produces `learned_world_minute`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy` on both private knowledge tables.
 - Produces `server_api.player_confidence_band_v1(numeric)` and `server_api.player_freshness_v1(bigint,bigint,bigint)`.
 
 - [ ] **Step 1: Write the initial RED pgTAP contract**
@@ -101,8 +103,6 @@ select no_plan();
 select has_column('world_private','worlds','current_world_minute','world has narrative minute');
 select has_column('world_private','player_location_knowledge','refreshed_world_minute','location knowledge has narrative refresh minute');
 select has_column('world_private','player_route_knowledge','refreshed_world_minute','route knowledge has narrative refresh minute');
-select has_column('world_private','player_location_knowledge','origin_label_known','location source identity has explicit known flag');
-select has_column('world_private','player_route_knowledge','origin_label_known','route source identity has explicit known flag');
 select has_column('world_private','player_location_knowledge','freshness_window_minutes','location knowledge can opt into staleness');
 select has_column('world_private','player_route_knowledge','privacy','route knowledge has privacy metadata');
 
@@ -165,7 +165,6 @@ alter table world_private.worlds
 Add to both private knowledge tables:
 
 ```text
-origin_label_known boolean not null default false
 learned_world_minute bigint not null default 0
 refreshed_world_minute bigint not null default 0
 freshness_window_minutes bigint null
@@ -202,10 +201,9 @@ Known source labels use:
 
 ```sql
 check (
-  not origin_label_known
+  origin_label is null
   or (
-    origin_label is not null
-    and origin_label = btrim(origin_label)
+    origin_label = btrim(origin_label)
     and char_length(origin_label) between 1 and 120
   )
 )
@@ -275,7 +273,7 @@ After the structural/helper assertions, use seeded rows to prove the named const
 ```text
 learned_world_minute > refreshed_world_minute
 unsupported origin_kind such as npc-rumor after normalization
-origin_label_known=true with NULL/blank label
+blank or over-120-character non-null origin_label
 privacy outside private/shared/public
 ```
 
@@ -286,12 +284,12 @@ Match SQLSTATE `23514` and the named constraint in the error text so a different
 Seed world minute `1440`. Use:
 
 ```text
-A village: exploration, known “Chegada própria”, private, refreshed 1440, no window
-A hidden rumor: npc, stored private label but known=false, private, refreshed 1380, window 240
-B village: player, known “Contato confiável”, shared, refreshed 1320, window 480
-B monastery: exploration, known “Investigação própria”, private, refreshed 1440, no window
-A route: npc, known=false, private, refreshed 1380, window 180
-B route: exploration, known “Investigação própria”, private, refreshed 1440, no window
+A village: exploration, label “Chegada própria”, private, refreshed 1440, no window
+A hidden rumor: npc, NULL label, private, refreshed 1380, window 240
+B village: player, label “Contato confiável”, shared, refreshed 1320, window 480
+B monastery: exploration, label “Investigação própria”, private, refreshed 1440, no window
+A route: npc, NULL label, private, refreshed 1380, window 180
+B route: exploration, label “Investigação própria”, private, refreshed 1440, no window
 ```
 
 Keep real timestamps as audit fields.
@@ -310,6 +308,7 @@ git commit -m "feat: add narrative knowledge metadata primitives"
 ### Task 2: Materialize only safe metadata into `player_api`
 
 **Files:**
+
 - Modify: `supabase/migrations/20260901043000_player_knowledge_metadata_v0.sql`
 - Modify: `supabase/tests/database/player_knowledge_metadata.test.sql`
 - Modify: `supabase/tests/database/player_route_knowledge.test.sql`
@@ -318,6 +317,7 @@ git commit -m "feat: add narrative knowledge metadata primitives"
 - Modify: `supabase/database.types.ts`
 
 **Interfaces:**
+
 - Produces `confidence_band`, `source_kind`, `source_label`, `freshness`, `privacy` on both player projection tables.
 - Removes `player_api.map_nodes.confidence`.
 - Produces safe node metadata refresh and atomic world-time freshness refresh.
@@ -359,7 +359,7 @@ Derive exactly:
 ```text
 confidence_band = classifier(private confidence)
 source_kind = origin_kind
-source_label = trimmed origin_label only when origin_label_known=true, else NULL
+source_label = origin_label when non-null (already player-known by private contract), else NULL
 freshness = freshness helper(current_world_minute, refreshed_world_minute, freshness_window_minutes)
 privacy = private privacy
 ```
@@ -372,7 +372,7 @@ Drop `player_api.map_nodes.confidence` only after successful backfill.
 
 Create `server_api.refresh_player_node_knowledge_metadata_v1(uuid,uuid) returns void`; it updates only the five safe fields of an existing node projection.
 
-Add an AFTER INSERT/UPDATE trigger on private location metadata inputs (`confidence`, `origin_kind`, `origin_label`, `origin_label_known`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy`).
+Add an AFTER INSERT/UPDATE trigger on private location metadata inputs (`confidence`, `origin_kind`, `origin_label`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy`).
 
 Add a BEFORE INSERT trigger on `player_api.map_nodes` that fills safe metadata from the matching private row or raises `player_node_knowledge_not_found`. It never modifies role/geometry/label/details.
 
@@ -411,15 +411,19 @@ select throws_ok(
 );
 ```
 
-- [ ] **Step 6: Prove wall-clock timestamps are not freshness inputs**
+- [ ] **Step 6: Prove atomic rollback when freshness rematerialization fails**
+
+Inside the pgTAP transaction, create a test-only `before update of freshness` trigger on `player_api.map_nodes` that raises SQLSTATE `P0001` with `test_freshness_refresh_failure` for one seeded projection. Capture the world's current minute, attempt to advance it, assert the exception, drop the test trigger/function, then assert `current_world_minute` is unchanged. This proves a downstream projection-refresh failure rolls back the world-minute update rather than leaving time and freshness inconsistent.
+
+- [ ] **Step 7: Prove wall-clock timestamps are not freshness inputs**
 
 Capture a seeded projection's `freshness`, update only the corresponding private `refreshed_at` timestamp by a large amount while leaving `refreshed_world_minute` untouched, and assert player `freshness` is unchanged. Then update `refreshed_world_minute` and assert freshness changes according to the world-minute classifier. This is the explicit regression against accidental wall-clock freshness.
 
-- [ ] **Step 7: Preserve RLS and route precision**
+- [ ] **Step 8: Preserve RLS and route precision**
 
 Extend `rls.test.sql` so A/B see only their own semantic rows and cannot INSERT/UPDATE projection tables. Keep every WKT assertion in `player_route_knowledge.test.sql`; add a metadata-only change whose expected path remains identical.
 
-- [ ] **Step 8: Regenerate types, run DB GREEN and commit**
+- [ ] **Step 9: Regenerate types, run DB GREEN and commit**
 
 ```bash
 pnpm db:reset
@@ -437,6 +441,7 @@ Verify generated node row type has no raw `confidence` and node/route types both
 ### Task 3: Add the common typed `MapProjection` envelope
 
 **Files:**
+
 - Create: `packages/map-renderer/src/knowledge-presentation.ts`
 - Modify: `packages/map-renderer/src/index.ts`
 - Modify: `packages/map-renderer/src/projection.ts`
@@ -446,6 +451,7 @@ Verify generated node row type has no raw `confidence` and node/route types both
 - Modify: `packages/map-renderer/src/projection-route-safety.test.ts`
 
 **Interfaces:**
+
 - Produces `ProjectionKnowledgePresentation` shared by node/route projection items.
 - Removes numeric confidence from Player projection types.
 
@@ -469,13 +475,26 @@ Run `pnpm vitest run packages/map-renderer/src/player-projection.test.ts` and co
 - [ ] **Step 2: Create the semantic contract**
 
 ```ts
-export const PROJECTION_CONFIDENCE_BANDS = ['low','moderate','high','very-high'] as const;
+export const PROJECTION_CONFIDENCE_BANDS = ['low', 'moderate', 'high', 'very-high'] as const;
 export type ProjectionConfidenceBand = (typeof PROJECTION_CONFIDENCE_BANDS)[number];
-export const PROJECTION_KNOWLEDGE_SOURCE_KINDS = ['system','exploration','npc','player','document','scene'] as const;
+export const PROJECTION_KNOWLEDGE_SOURCE_KINDS = [
+  'system',
+  'exploration',
+  'npc',
+  'player',
+  'document',
+  'scene',
+] as const;
 export type ProjectionKnowledgeSourceKind = (typeof PROJECTION_KNOWLEDGE_SOURCE_KINDS)[number];
-export const PROJECTION_FRESHNESS_VALUES = ['just-updated','recent','aging','stale','not-applicable'] as const;
+export const PROJECTION_FRESHNESS_VALUES = [
+  'just-updated',
+  'recent',
+  'aging',
+  'stale',
+  'not-applicable',
+] as const;
 export type ProjectionFreshness = (typeof PROJECTION_FRESHNESS_VALUES)[number];
-export const PROJECTION_KNOWLEDGE_PRIVACY_VALUES = ['private','shared','public'] as const;
+export const PROJECTION_KNOWLEDGE_PRIVACY_VALUES = ['private', 'shared', 'public'] as const;
 export type ProjectionKnowledgePrivacy = (typeof PROJECTION_KNOWLEDGE_PRIVACY_VALUES)[number];
 export const PLAYER_KNOWLEDGE_SOURCE_LABEL_MAX_LENGTH = 120;
 
@@ -514,12 +533,14 @@ git commit -m "feat: add typed player knowledge presentation"
 ### Task 4: Enforce the envelope in Zod and the Player DB adapter
 
 **Files:**
+
 - Modify: `packages/world-schema/src/schemas.ts`
 - Modify: `packages/world-schema/src/schemas.test.ts`
 - Modify: `apps/player/lib/map/player-projection-source.ts`
 - Modify: `apps/player/lib/map/player-projection-source.test.ts`
 
 **Interfaces:**
+
 - Produces strict schema validation and `readKnowledgePresentation(row)` from only player-safe DB fields.
 
 - [ ] **Step 1: Write RED world-schema tests**
@@ -543,10 +564,13 @@ Run `pnpm vitest run packages/world-schema/src/schemas.test.ts` and confirm RED.
 Do not use `.max(120)` for JS strings. Use:
 
 ```ts
-const safeSourceLabelSchema = z.string().trim().min(1).refine(
-  (value) => Array.from(value).length <= PLAYER_KNOWLEDGE_SOURCE_LABEL_MAX_LENGTH,
-  { message: 'Source label exceeds 120 Unicode code points' },
-);
+const safeSourceLabelSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .refine((value) => Array.from(value).length <= PLAYER_KNOWLEDGE_SOURCE_LABEL_MAX_LENGTH, {
+    message: 'Source label exceeds 120 Unicode code points',
+  });
 ```
 
 Build strict source/envelope schemas using exported runtime arrays. Require envelope on node/route; remove legacy projection numeric confidence.
@@ -602,6 +626,7 @@ git commit -m "feat: enforce player knowledge metadata boundary"
 ### Task 5: Present metadata in the existing compact node experience
 
 **Files:**
+
 - Modify: `apps/player/lib/map/player-node-detail-model.ts`
 - Modify: `apps/player/lib/map/player-node-detail-model.test.ts`
 - Modify: `apps/player/app/player-map-explorer.tsx`
@@ -612,6 +637,7 @@ git commit -m "feat: enforce player knowledge metadata boundary"
 - Modify: `apps/player/app/globals.css`
 
 **Interfaces:**
+
 - `PlayerNodeDetailView` gains geometry-free `knowledgePresentation`.
 - Produces centralized Portuguese formatters.
 - SVG exposes confidence/freshness semantic hooks only.
@@ -690,16 +716,18 @@ git commit -m "feat: present player knowledge metadata"
 ### Task 6: Prove A/B isolation and run CI-equivalent verification
 
 **Files:**
+
 - Modify: `scripts/database-api-leakage-test.mjs`
 - Modify: `scripts/player-auth-projection-test.mjs`
 - Modify compile-only projection fixtures that now require `knowledgePresentation`.
 
 **Interfaces:**
+
 - Produces PostgREST + real-Auth evidence that only safe semantic metadata reaches each player.
 
 - [ ] **Step 1: Add PostgREST assertions**
 
-For A/B, assert safe columns exist and responses do not expose raw confidence, world-minute fields, `origin_label_known`, source/canonical mapping IDs or another player's row. Prove A's unknown NPC has `source_label === null`.
+For A/B, assert safe columns exist and responses do not expose raw confidence, world-minute fields, source/canonical mapping IDs or another player's row. Prove A's unknown NPC has `source_label === null`.
 
 - [ ] **Step 2: Add real-Auth projection assertions**
 
@@ -743,7 +771,7 @@ Expected: all green and empty diff.
 - [ ] **Step 6: Search Player-facing code for private/raw fields**
 
 ```bash
-rg -n "current_world_minute|learned_world_minute|refreshed_world_minute|freshness_window_minutes|origin_label_known|source_location_id|source_route_id" apps/player packages/map-renderer
+rg -n "current_world_minute|learned_world_minute|refreshed_world_minute|freshness_window_minutes|source_location_id|source_route_id" apps/player packages/map-renderer
 rg -n "confidence\?: number|confidence: number" apps/player packages/map-renderer
 ```
 
@@ -761,11 +789,13 @@ git commit -m "test: prove player knowledge metadata isolation"
 ### Task 7: Close 8F with verified evidence and a draft PR
 
 **Files:**
+
 - Create: `docs/PLAYER_KNOWLEDGE_METADATA_V0_STATUS.md`
 - Modify: `docs/PLAYER_KNOWLEDGE_V0_PROGRESS.md`
 - Update Drive Master/checklist only after final GitHub CI evidence exists.
 
 **Interfaces:**
+
 - Produces canonical 8F checkpoint.
 - No merge and no deploy.
 
