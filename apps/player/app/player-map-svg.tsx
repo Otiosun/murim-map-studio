@@ -94,6 +94,7 @@ export function PlayerMapSvg({
               data-node-role={node.role}
               data-node-selected="false"
               data-player-node="true"
+              data-selected="false"
               key={node.id}
               role="button"
               tabIndex={0}
