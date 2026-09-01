@@ -24,11 +24,7 @@ export default async function PlayerHome() {
 
   const mapContent =
     mapState.status === 'unavailable' ? (
-      <div
-        className="player-map-unavailable"
-        data-player-map-state="unavailable"
-        role="status"
-      >
+      <div className="player-map-unavailable" data-player-map-state="unavailable" role="status">
         O mapa não está disponível no momento.
       </div>
     ) : (
