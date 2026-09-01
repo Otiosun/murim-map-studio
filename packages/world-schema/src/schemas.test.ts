@@ -13,6 +13,13 @@ const LOCATION_A_ID = '00000000-0000-4000-8000-000000000002';
 const LOCATION_B_ID = '00000000-0000-4000-8000-000000000003';
 const ROUTE_ID = '00000000-0000-4000-8000-000000000004';
 
+const knowledgePresentation = {
+  confidence: 'high' as const,
+  source: { kind: 'npc' as const, label: 'Mestre Han' },
+  freshness: 'recent' as const,
+  privacy: 'private' as const,
+};
+
 function validPack() {
   return {
     format: 'murim-world-pack' as const,
@@ -94,7 +101,45 @@ function projectionWithDetail(detail: unknown) {
         position: { x: 1, y: 2 },
         role: 'known',
         symbolKey: 'location:settlement',
+        knowledgePresentation,
         detail,
+      },
+    ],
+  };
+}
+
+function projectionWithKnowledgePresentation(presentation: unknown) {
+  return {
+    projectionVersion: 1,
+    mapKey: 'player-map',
+    generatedAt: NOW,
+    items: [
+      {
+        id: 'node-safe',
+        kind: 'node',
+        metadata: {},
+        position: { x: 1, y: 2 },
+        role: 'known',
+        symbolKey: 'location:settlement',
+        knowledgeState: 'confirmed',
+        knowledgePresentation: presentation,
+      },
+      {
+        id: 'route-safe',
+        kind: 'route',
+        metadata: {},
+        fromItemId: 'node-safe',
+        toItemId: 'node-safe',
+        path: {
+          kind: 'polyline',
+          points: [
+            { x: 1, y: 2 },
+            { x: 3, y: 4 },
+          ],
+        },
+        styleKey: 'route:confirmed',
+        knowledgeState: 'confirmed',
+        knowledgePresentation: presentation,
       },
     ],
   };
@@ -143,7 +188,12 @@ describe('mapProjectionSchema', () => {
           role: 'ghost',
           symbolKey: 'unknown-cave',
           knowledgeState: 'rumor',
-          confidence: 0.35,
+          knowledgePresentation: {
+            confidence: 'low',
+            source: { kind: 'npc' },
+            freshness: 'recent',
+            privacy: 'private',
+          },
           approximateLocation: { center: { x: 120, y: 80 }, radius: 40 },
           metadata: {},
         },
@@ -151,6 +201,59 @@ describe('mapProjectionSchema', () => {
     };
 
     expect(mapProjectionSchema.parse(projection)).toEqual(projection);
+  });
+
+  it('accepts the same strict knowledge envelope on nodes and routes', () => {
+    const projection = projectionWithKnowledgePresentation(knowledgePresentation);
+
+    expect(parseMapProjection(projection)).toEqual(projection);
+  });
+
+  it('counts source labels by Unicode code points', () => {
+    const label = '🀄'.repeat(120);
+    const projection = projectionWithKnowledgePresentation({
+      ...knowledgePresentation,
+      source: { kind: 'document', label },
+    });
+
+    expect(parseMapProjection(projection).items[0]).toMatchObject({
+      knowledgePresentation: { source: { label } },
+    });
+  });
+
+  it.each([
+    { ...knowledgePresentation, confidence: 'certain' },
+    { ...knowledgePresentation, source: { kind: 'oracle' } },
+    { ...knowledgePresentation, freshness: 'fresh' },
+    { ...knowledgePresentation, privacy: 'friends-only' },
+    { ...knowledgePresentation, source: { kind: 'npc', label: '   ' } },
+    { ...knowledgePresentation, source: { kind: 'npc', label: '🀄'.repeat(121) } },
+    { ...knowledgePresentation, source: { kind: 'npc', sourceRef: WORLD_ID } },
+    { ...knowledgePresentation, source: { kind: 'npc', sourceId: WORLD_ID } },
+    { ...knowledgePresentation, source: { kind: 'npc', canonicalId: WORLD_ID } },
+    { ...knowledgePresentation, unexpected: true },
+  ])('rejects invalid player knowledge presentation %#', (presentation) => {
+    expect(() => parseMapProjection(projectionWithKnowledgePresentation(presentation))).toThrow();
+  });
+
+  it('rejects missing knowledge presentation on player node and route items', () => {
+    const projection = projectionWithKnowledgePresentation(knowledgePresentation);
+    const withoutPresentation = {
+      ...projection,
+      items: projection.items.map(({ knowledgePresentation: _knowledgePresentation, ...item }) => item),
+    };
+
+    expect(() => parseMapProjection(withoutPresentation)).toThrow();
+  });
+
+  it('rejects legacy numeric confidence in the player projection contract', () => {
+    const projection = projectionWithKnowledgePresentation(knowledgePresentation);
+    const legacy = {
+      ...projection,
+      items: projection.items.map((item) => ({ ...item, confidence: 0.95 })),
+    };
+
+    expect(() => parseMapProjection(legacy)).toThrow();
   });
 
   it('trims and accepts only the typed player-safe node detail fields', () => {
@@ -189,6 +292,7 @@ describe('mapProjectionSchema', () => {
           role: 'known',
           symbolKey: 'village',
           metadata: {},
+          knowledgePresentation,
           sourceEntityId: WORLD_ID,
         },
       ],
