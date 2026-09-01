@@ -2,6 +2,13 @@ import { describe, expect, it } from 'vitest';
 import type { MapProjection } from './projection';
 import { calculatePlayerSvgViewport, hasRenderablePlayerMapGeometry } from './player-viewport';
 
+const knowledgePresentation = {
+  confidence: 'high',
+  source: { kind: 'system' },
+  freshness: 'not-applicable',
+  privacy: 'private',
+} as const;
+
 const baseProjection = (items: MapProjection['items']): MapProjection => ({
   projectionVersion: 1,
   mapKey: 'player-map',
@@ -19,6 +26,7 @@ describe('calculatePlayerSvgViewport', () => {
         role: 'known',
         symbolKey: 'node:known',
         position: { x: -10.5, y: 4.25 },
+        knowledgePresentation,
       },
       {
         id: 'node:b',
@@ -27,6 +35,7 @@ describe('calculatePlayerSvgViewport', () => {
         role: 'known',
         symbolKey: 'node:known',
         position: { x: 25.75, y: 40.5 },
+        knowledgePresentation,
       },
       {
         id: 'route:r',
@@ -42,6 +51,7 @@ describe('calculatePlayerSvgViewport', () => {
             { x: 50.5, y: 60.75 },
           ],
         },
+        knowledgePresentation,
       },
     ]);
 
@@ -64,6 +74,7 @@ describe('calculatePlayerSvgViewport', () => {
         symbolKey: 'node:ghost',
         position: { x: 12, y: 20 },
         approximateLocation: { center: { x: 12, y: 20 }, radius: 5 },
+        knowledgePresentation,
       },
     ]);
 
@@ -98,6 +109,7 @@ describe('calculatePlayerSvgViewport', () => {
         role: 'known',
         symbolKey: 'node:known',
         position: { x: 2, y: 3 },
+        knowledgePresentation,
       },
     ]);
 
@@ -118,6 +130,7 @@ describe('calculatePlayerSvgViewport', () => {
         role: 'known',
         symbolKey: 'node:known',
         position: { x: 2, y: 3 },
+        knowledgePresentation,
       },
     ]);
 
@@ -138,6 +151,7 @@ describe('calculatePlayerSvgViewport', () => {
         role: 'known',
         symbolKey: 'node:known',
         position: { x: 2, y: 3 },
+        knowledgePresentation,
       },
     ]);
     const before = structuredClone(projection);
