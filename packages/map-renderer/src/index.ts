@@ -1,3 +1,4 @@
+export * from './knowledge-presentation';
 export * from './player-projection';
 export * from './player-viewport';
 export * from './projection';
