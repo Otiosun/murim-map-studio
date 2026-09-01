@@ -38,6 +38,7 @@ function MapMarkup() {
         aria-pressed="false"
         data-node-id="node:known"
         data-player-node="true"
+        data-selected="false"
         role="button"
         tabIndex={0}
       >
@@ -49,6 +50,7 @@ function MapMarkup() {
         aria-pressed="false"
         data-node-id="node:ghost"
         data-player-node="true"
+        data-selected="false"
         role="button"
         tabIndex={0}
       >
@@ -158,17 +160,20 @@ describe('PlayerMapExplorer', () => {
     expect(fetchSpy).not.toHaveBeenCalled();
   });
 
-  it('updates the same panel and selected-state semantics when another node is chosen', () => {
+  it('updates the same panel and canonical selected-state semantics when another node is chosen', () => {
     act(() => dispatchClick(node('node:known')));
     expect(node('node:known').getAttribute('aria-pressed')).toBe('true');
+    expect(node('node:known').getAttribute('data-selected')).toBe('true');
     expect(node('node:known').getAttribute('data-node-selected')).toBe('true');
 
     act(() => dispatchClick(node('node:ghost')));
 
     expect(panel().textContent).toContain('Local não identificado');
     expect(node('node:known').getAttribute('aria-pressed')).toBe('false');
+    expect(node('node:known').getAttribute('data-selected')).toBe('false');
     expect(node('node:known').getAttribute('data-node-selected')).toBe('false');
     expect(node('node:ghost').getAttribute('aria-pressed')).toBe('true');
+    expect(node('node:ghost').getAttribute('data-selected')).toBe('true');
     expect(node('node:ghost').getAttribute('data-node-selected')).toBe('true');
   });
 
@@ -194,6 +199,7 @@ describe('PlayerMapExplorer', () => {
     expect(panel().hidden).toBe(true);
     expect(document.activeElement).toBe(known);
     expect(known.getAttribute('aria-pressed')).toBe('false');
+    expect(known.getAttribute('data-selected')).toBe('false');
   });
 
   it('falls back focus to the explorer region if the selected node leaves the DOM', () => {
