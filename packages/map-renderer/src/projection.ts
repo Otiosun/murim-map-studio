@@ -7,7 +7,15 @@ import type {
   WorldPoint,
 } from '@murim/domain';
 
+export const PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH = 80;
+export const PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH = 600;
+
 export type ProjectionItemId = string;
+
+export interface ProjectionNodeDetail {
+  category?: string;
+  summary?: string;
+}
 
 interface ProjectionItemBase<TKind extends string> {
   id: ProjectionItemId;
@@ -23,6 +31,7 @@ export interface ProjectionNode extends ProjectionItemBase<'node'> {
   knowledgeState?: KnowledgeState;
   confidence?: number;
   approximateLocation?: ApproximateLocation;
+  detail?: ProjectionNodeDetail;
 }
 
 export interface ProjectionRoute extends ProjectionItemBase<'route'> {

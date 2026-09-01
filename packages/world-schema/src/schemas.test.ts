@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   deserializeWorldPack,
   mapProjectionSchema,
+  parseMapProjection,
   parseWorldPack,
   serializeWorldPack,
 } from './index';
@@ -80,6 +81,25 @@ function validPack() {
   };
 }
 
+function projectionWithDetail(detail: unknown) {
+  return {
+    projectionVersion: 1,
+    mapKey: 'player-map',
+    generatedAt: '2026-08-31T18:00:00.000Z',
+    items: [
+      {
+        id: 'node-safe',
+        kind: 'node',
+        metadata: {},
+        position: { x: 1, y: 2 },
+        role: 'known',
+        symbolKey: 'location:settlement',
+        detail,
+      },
+    ],
+  };
+}
+
 describe('worldPackSchema', () => {
   it('validates and round-trips a renderer-independent mini world', () => {
     const parsed = parseWorldPack(validPack());
@@ -131,6 +151,29 @@ describe('mapProjectionSchema', () => {
     };
 
     expect(mapProjectionSchema.parse(projection)).toEqual(projection);
+  });
+
+  it('trims and accepts only the typed player-safe node detail fields', () => {
+    const parsed = parseMapProjection(
+      projectionWithDetail({
+        category: '  Vila  ',
+        summary: '  Conhecida pelo jogador.  ',
+      }),
+    );
+
+    expect(parsed.items[0]).toMatchObject({
+      detail: { category: 'Vila', summary: 'Conhecida pelo jogador.' },
+    });
+  });
+
+  it.each([
+    { category: 'Vila', canonicalId: 'x' },
+    { category: { nested: true } },
+    { category: '   ' },
+    { category: 'x'.repeat(81) },
+    { summary: 'x'.repeat(601) },
+  ])('rejects unsafe or invalid node detail %#', (detail) => {
+    expect(() => parseMapProjection(projectionWithDetail(detail))).toThrow();
   });
 
   it('rejects accidental canonical ids leaking into a strict player projection', () => {

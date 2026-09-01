@@ -1,5 +1,10 @@
 import type { KnowledgeState, PolylineGeometry, WorldPoint } from '@murim/domain';
-import type { MapProjection, ProjectionNode, ProjectionRoute } from './projection';
+import type {
+  MapProjection,
+  ProjectionNode,
+  ProjectionNodeDetail,
+  ProjectionRoute,
+} from './projection';
 
 export interface PlayerProjectionNodeInput {
   projectionId: string;
@@ -10,6 +15,7 @@ export interface PlayerProjectionNodeInput {
   role: 'known' | 'ghost';
   position: WorldPoint;
   approximateRadius?: number;
+  detail?: ProjectionNodeDetail;
 }
 
 export interface PlayerProjectionRouteInput {
@@ -39,6 +45,7 @@ function buildNode(input: PlayerProjectionNodeInput): ProjectionNode {
     label: input.label,
     knowledgeState: input.knowledgeState,
     confidence: input.confidence,
+    ...(input.detail === undefined ? {} : { detail: input.detail }),
   };
 
   if (input.role === 'known') {

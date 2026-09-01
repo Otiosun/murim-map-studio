@@ -20,7 +20,7 @@ function nodeRow(overrides: Record<string, unknown> = {}) {
     role: 'known',
     approximate_radius: null,
     geom: { type: 'Point', coordinates: [100, 200] },
-    details: { secret_payload: 'must never be copied' },
+    details: {},
     updated_at: generatedAt,
     ...overrides,
   };
@@ -48,16 +48,22 @@ function routeRow(overrides: Record<string, unknown> = {}) {
 }
 
 function createPlayerApiClient(rows: Record<TableName, unknown[]>) {
-  const calls: Array<{ schema: string; table: string; column: string; value: string }> = [];
+  const calls: Array<{
+    schema: string;
+    table: string;
+    columns: string;
+    column: string;
+    value: string;
+  }> = [];
   const client = {
     schema(schema: string) {
       return {
         from(table: TableName) {
           return {
-            select(_columns: string) {
+            select(columns: string) {
               return {
                 async eq(column: string, value: string) {
-                  calls.push({ schema, table, column, value });
+                  calls.push({ schema, table, columns, column, value });
                   return { data: rows[table], error: null };
                 },
               };
@@ -98,14 +104,25 @@ describe('createSupabasePlayerProjectionSource', () => {
 
     const projection = await source.load(playerId);
 
-    expect(calls).toEqual([
-      { schema: 'player_api', table: 'map_nodes', column: 'owner_user_id', value: playerId },
-      { schema: 'player_api', table: 'map_routes', column: 'owner_user_id', value: playerId },
-    ]);
+    expect(calls).toHaveLength(2);
+    expect(calls[0]).toMatchObject({
+      schema: 'player_api',
+      table: 'map_nodes',
+      column: 'owner_user_id',
+      value: playerId,
+    });
+    expect(calls[0]?.columns).toContain('details');
+    expect(calls[1]).toMatchObject({
+      schema: 'player_api',
+      table: 'map_routes',
+      column: 'owner_user_id',
+      value: playerId,
+    });
     expect(projection.projectionVersion).toBe(1);
     expect(projection.mapKey).toBe('player-map');
     expect(projection.generatedAt).toBe(generatedAt);
     expect(projection.items[0]).toMatchObject({ kind: 'node', position: { x: 100, y: 200 } });
+    expect(projection.items[0]).not.toHaveProperty('detail');
     expect(projection.items[2]).toMatchObject({
       kind: 'route',
       path: {
@@ -116,9 +133,49 @@ describe('createSupabasePlayerProjectionSource', () => {
         ],
       },
     });
-    expect(JSON.stringify(projection)).not.toContain('secret_payload');
     expect(JSON.stringify(projection)).not.toContain('canonicalId');
     expect(projection.items).toHaveLength(3);
+  });
+
+  it.each([
+    [{ category: '  Vila  ' }, { category: 'Vila' }],
+    [{ summary: '  Conhecida pelo jogador.  ' }, { summary: 'Conhecida pelo jogador.' }],
+    [
+      { category: '  Vila  ', summary: '  Conhecida pelo jogador.  ' },
+      { category: 'Vila', summary: 'Conhecida pelo jogador.' },
+    ],
+  ])('accepts and trims authorized detail %#', async (details, expectedDetail) => {
+    const { source } = createSource({
+      map_nodes: [nodeRow({ details })],
+      map_routes: [],
+    });
+
+    const projection = await source.load(playerId);
+
+    expect(projection.items[0]).toMatchObject({
+      kind: 'node',
+      detail: expectedDetail,
+    });
+  });
+
+  it.each([
+    null,
+    [],
+    'text',
+    { category: '' },
+    { category: ' '.repeat(4) },
+    { category: 'x'.repeat(81) },
+    { summary: 'x'.repeat(601) },
+    { category: 123 },
+    { summary: { nested: true } },
+    { category: 'Vila', source_location_id: 'forbidden' },
+  ])('fails closed for invalid player node detail %#', async (details) => {
+    const { source } = createSource({
+      map_nodes: [nodeRow({ details })],
+      map_routes: [],
+    });
+
+    await expect(source.load(playerId)).rejects.toThrow('Invalid player map node detail');
   });
 
   it('rejects the built projection when it fails the strict schema', async () => {

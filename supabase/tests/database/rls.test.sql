@@ -3,7 +3,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = public, extensions;
 
-select plan(22);
+select plan(25);
 
 select ok(
   not has_schema_privilege('authenticated', 'world_private', 'USAGE'),
@@ -33,6 +33,11 @@ select ok(
 select ok(
   not has_table_privilege('authenticated', 'player_api.map_nodes', 'INSERT'),
   'authenticated cannot directly INSERT projection rows'
+);
+
+select ok(
+  not has_table_privilege('authenticated', 'player_api.map_nodes', 'UPDATE'),
+  'authenticated cannot directly UPDATE projection details'
 );
 
 select ok(
@@ -85,6 +90,16 @@ select results_eq(
 
 select results_eq(
   $$
+    select details
+    from player_api.map_nodes
+    where projection_id = '91000000-0000-4000-8000-000000000001'::uuid
+  $$,
+  $$values ('{"category":"Vila","summary":"Ponto de chegada e mercado conhecido pelo personagem."}'::jsonb)$$,
+  'player A receives only its authorized village detail'
+);
+
+select results_eq(
+  $$
     select role, approximate_radius
     from player_api.map_nodes
     where projection_id = '91000000-0000-4000-8000-000000000002'::uuid
@@ -127,6 +142,16 @@ select results_eq(
   $$select count(*)::bigint from player_api.map_nodes$$,
   $$values (2::bigint)$$,
   'player B sees only player B projection rows'
+);
+
+select results_eq(
+  $$
+    select details
+    from player_api.map_nodes
+    where projection_id = '92000000-0000-4000-8000-000000000001'::uuid
+  $$,
+  $$values ('{"category":"Assentamento","summary":"Vila registrada em um mapa compartilhado confiável."}'::jsonb)$$,
+  'player B receives its distinct authorized village detail'
 );
 
 select results_eq(
