@@ -40,76 +40,103 @@ export type Database = {
       map_nodes: {
         Row: {
           approximate_radius: number | null;
-          confidence: number;
+          confidence_band: string;
           details: Json;
+          freshness: string;
           geom: unknown;
           kind: string;
           knowledge_state: string;
           label: string;
           owner_user_id: string;
+          privacy: string;
           projection_id: string;
           role: string;
+          source_kind: string;
+          source_label: string | null;
           updated_at: string;
         };
         Insert: {
           approximate_radius?: number | null;
-          confidence: number;
+          confidence_band: string;
           details?: Json;
+          freshness: string;
           geom?: unknown;
           kind: string;
           knowledge_state: string;
           label: string;
           owner_user_id: string;
+          privacy: string;
           projection_id: string;
           role?: string;
+          source_kind: string;
+          source_label?: string | null;
           updated_at?: string;
         };
         Update: {
           approximate_radius?: number | null;
-          confidence?: number;
+          confidence_band?: string;
           details?: Json;
+          freshness?: string;
           geom?: unknown;
           kind?: string;
           knowledge_state?: string;
           label?: string;
           owner_user_id?: string;
+          privacy?: string;
           projection_id?: string;
           role?: string;
+          source_kind?: string;
+          source_label?: string | null;
           updated_at?: string;
         };
         Relationships: [];
       };
       map_routes: {
         Row: {
+          confidence_band: string;
           details: Json;
+          freshness: string;
           from_projection_id: string;
           geom: unknown;
           knowledge_state: string;
           label: string | null;
           owner_user_id: string;
+          privacy: string;
           projection_id: string;
+          source_kind: string;
+          source_label: string | null;
           to_projection_id: string;
           updated_at: string;
         };
         Insert: {
+          confidence_band: string;
           details?: Json;
+          freshness: string;
           from_projection_id: string;
           geom?: unknown;
           knowledge_state: string;
           label?: string | null;
           owner_user_id: string;
+          privacy: string;
           projection_id: string;
+          source_kind: string;
+          source_label?: string | null;
           to_projection_id: string;
           updated_at?: string;
         };
         Update: {
+          confidence_band?: string;
           details?: Json;
+          freshness?: string;
           from_projection_id?: string;
           geom?: unknown;
           knowledge_state?: string;
           label?: string | null;
           owner_user_id?: string;
+          privacy?: string;
           projection_id?: string;
+          source_kind?: string;
+          source_label?: string | null;
           to_projection_id?: string;
           updated_at?: string;
         };
@@ -152,6 +179,10 @@ export type Database = {
       [_ in never]: never;
     };
     Functions: {
+      advance_world_minute_v1: {
+        Args: { p_new_world_minute: number; p_world_id: string };
+        Returns: undefined;
+      };
       commit_location_state_v1: {
         Args: {
           p_action: string;
@@ -179,6 +210,22 @@ export type Database = {
           applied: boolean;
           committed_revision: number;
         }[];
+      };
+      player_confidence_band_v1: {
+        Args: { p_confidence: number };
+        Returns: string;
+      };
+      player_freshness_v1: {
+        Args: {
+          p_current_world_minute: number;
+          p_refreshed_world_minute: number;
+          p_window_minutes: number;
+        };
+        Returns: string;
+      };
+      refresh_player_node_knowledge_metadata_v1: {
+        Args: { p_owner_user_id: string; p_source_location_id: string };
+        Returns: undefined;
       };
       refresh_player_route_projection_v1: {
         Args: { p_owner_user_id: string; p_source_route_id: string };
@@ -307,12 +354,16 @@ export type Database = {
           approximate_geom: unknown;
           approximate_radius: number | null;
           confidence: number;
+          freshness_window_minutes: number | null;
           learned_at: string;
+          learned_world_minute: number;
           origin_kind: string;
           origin_label: string | null;
           owner_user_id: string;
+          privacy: string;
           projection_id: string;
           refreshed_at: string;
+          refreshed_world_minute: number;
           source_location_id: string;
           state: Database['world_private']['Enums']['knowledge_state'];
         };
@@ -320,12 +371,16 @@ export type Database = {
           approximate_geom?: unknown;
           approximate_radius?: number | null;
           confidence: number;
+          freshness_window_minutes?: number | null;
           learned_at: string;
+          learned_world_minute?: number;
           origin_kind: string;
           origin_label?: string | null;
           owner_user_id: string;
+          privacy?: string;
           projection_id: string;
           refreshed_at: string;
+          refreshed_world_minute?: number;
           source_location_id: string;
           state: Database['world_private']['Enums']['knowledge_state'];
         };
@@ -333,12 +388,16 @@ export type Database = {
           approximate_geom?: unknown;
           approximate_radius?: number | null;
           confidence?: number;
+          freshness_window_minutes?: number | null;
           learned_at?: string;
+          learned_world_minute?: number;
           origin_kind?: string;
           origin_label?: string | null;
           owner_user_id?: string;
+          privacy?: string;
           projection_id?: string;
           refreshed_at?: string;
+          refreshed_world_minute?: number;
           source_location_id?: string;
           state?: Database['world_private']['Enums']['knowledge_state'];
         };
@@ -355,34 +414,46 @@ export type Database = {
       player_route_knowledge: {
         Row: {
           confidence: number;
+          freshness_window_minutes: number | null;
           learned_at: string;
+          learned_world_minute: number;
           origin_kind: string;
           origin_label: string | null;
           owner_user_id: string;
+          privacy: string;
           projection_id: string;
           refreshed_at: string;
+          refreshed_world_minute: number;
           source_route_id: string;
           state: Database['world_private']['Enums']['knowledge_state'];
         };
         Insert: {
           confidence: number;
+          freshness_window_minutes?: number | null;
           learned_at: string;
+          learned_world_minute?: number;
           origin_kind: string;
           origin_label?: string | null;
           owner_user_id: string;
+          privacy?: string;
           projection_id: string;
           refreshed_at: string;
+          refreshed_world_minute?: number;
           source_route_id: string;
           state: Database['world_private']['Enums']['knowledge_state'];
         };
         Update: {
           confidence?: number;
+          freshness_window_minutes?: number | null;
           learned_at?: string;
+          learned_world_minute?: number;
           origin_kind?: string;
           origin_label?: string | null;
           owner_user_id?: string;
+          privacy?: string;
           projection_id?: string;
           refreshed_at?: string;
+          refreshed_world_minute?: number;
           source_route_id?: string;
           state?: Database['world_private']['Enums']['knowledge_state'];
         };
@@ -620,6 +691,7 @@ export type Database = {
       worlds: {
         Row: {
           created_at: string;
+          current_world_minute: number;
           id: string;
           name: string;
           schema_version: number;
@@ -628,6 +700,7 @@ export type Database = {
         };
         Insert: {
           created_at?: string;
+          current_world_minute?: number;
           id: string;
           name: string;
           schema_version: number;
@@ -636,6 +709,7 @@ export type Database = {
         };
         Update: {
           created_at?: string;
+          current_world_minute?: number;
           id?: string;
           name?: string;
           schema_version?: number;
