@@ -123,6 +123,14 @@ describe('PlayerMapExplorer', () => {
     return element;
   }
 
+  function explorer() {
+    const element = container.querySelector<HTMLElement>('.player-map-explorer');
+    if (!element) {
+      throw new Error('Missing player map explorer');
+    }
+    return element;
+  }
+
   it('selects an authorized node by click and renders only safe detail fields', () => {
     act(() => dispatchClick(node('node:known')));
 
@@ -186,6 +194,25 @@ describe('PlayerMapExplorer', () => {
     expect(panel().hidden).toBe(true);
     expect(document.activeElement).toBe(known);
     expect(known.getAttribute('aria-pressed')).toBe('false');
+  });
+
+  it('falls back focus to the explorer region if the selected node leaves the DOM', () => {
+    const known = node('node:known');
+    act(() => dispatchClick(known));
+
+    known.remove();
+    const close = panel().querySelector<HTMLButtonElement>('button');
+    if (!close) {
+      throw new Error('Missing close button');
+    }
+    close.focus();
+
+    act(() => close.click());
+
+    expect(panel().hidden).toBe(true);
+    expect(explorer().getAttribute('role')).toBe('region');
+    expect(explorer().tabIndex).toBe(-1);
+    expect(document.activeElement).toBe(explorer());
   });
 
   it('closes with Escape from either a map node or the panel', () => {
