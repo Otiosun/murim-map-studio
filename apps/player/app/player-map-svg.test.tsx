@@ -93,6 +93,27 @@ describe('PlayerMapSvg', () => {
     expect(html).toContain('aria-label="Local não identificado, localização aproximada"');
   });
 
+  it('uses the exact generic fallback for an unlabeled known node', () => {
+    const unlabeledKnownProjection: MapProjection = {
+      ...projection,
+      items: [
+        {
+          id: 'node:unlabeled-known',
+          kind: 'node',
+          metadata: {},
+          role: 'known',
+          symbolKey: 'node:unlabeled-known',
+          position: { x: 12, y: 18 },
+        },
+      ],
+    };
+    const html = renderToStaticMarkup(<PlayerMapSvg projection={unlabeledKnownProjection} />);
+
+    expect(html).toContain('aria-label="Local não identificado"');
+    expect(html).not.toContain('aria-label="Local conhecido"');
+    expect(html).not.toContain('aria-label="node:unlabeled-known"');
+  });
+
   it('renders canonical presentation-only hit targets and visible markers for every node', () => {
     const html = renderToStaticMarkup(<PlayerMapSvg projection={projection} />);
     const legacyTargetMatches = html.match(/data-node-interaction-target="true"/g) ?? [];
