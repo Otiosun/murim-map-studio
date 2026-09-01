@@ -25,9 +25,9 @@ function findPlayerNodeElement(target: EventTarget | null): Element | null {
   return target.closest(NODE_SELECTOR);
 }
 
-function focusNodeByAuthorizedId(root: HTMLDivElement | null, id: string) {
+function focusNodeByAuthorizedId(root: HTMLDivElement | null, id: string): boolean {
   if (!root) {
-    return;
+    return false;
   }
 
   for (const element of root.querySelectorAll(NODE_SELECTOR)) {
@@ -38,9 +38,12 @@ function focusNodeByAuthorizedId(root: HTMLDivElement | null, id: string) {
     const focus = (element as Element & { focus?: () => void }).focus;
     if (typeof focus === 'function') {
       focus.call(element);
+      return true;
     }
-    return;
+    return false;
   }
+
+  return false;
 }
 
 export function PlayerMapExplorer({ nodes, children }: PlayerMapExplorerProps) {
@@ -66,7 +69,9 @@ export function PlayerMapExplorer({ nodes, children }: PlayerMapExplorerProps) {
 
     const idToFocus = selectedNodeId;
     setSelectedNodeId(null);
-    focusNodeByAuthorizedId(rootRef.current, idToFocus);
+    if (!focusNodeByAuthorizedId(rootRef.current, idToFocus)) {
+      rootRef.current?.focus();
+    }
   }, [selectedNodeId]);
 
   useEffect(() => {
@@ -119,10 +124,13 @@ export function PlayerMapExplorer({ nodes, children }: PlayerMapExplorerProps) {
 
   return (
     <div
+      aria-label="Explorador do mapa do jogador"
       className="player-map-explorer"
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       ref={rootRef}
+      role="region"
+      tabIndex={-1}
     >
       <div className="player-map-explorer-canvas">{children}</div>
       <aside
