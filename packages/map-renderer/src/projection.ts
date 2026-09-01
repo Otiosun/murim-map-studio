@@ -6,33 +6,12 @@ import type {
   PolylineGeometry,
   WorldPoint,
 } from '@murim/domain';
+import type { ProjectionKnowledgePresentation } from './knowledge-presentation';
 
 export const PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH = 80;
 export const PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH = 600;
-export const PLAYER_KNOWLEDGE_SOURCE_LABEL_MAX_LENGTH = 120;
 
 export type ProjectionItemId = string;
-
-export type ProjectionConfidenceBand = 'low' | 'moderate' | 'high' | 'very-high';
-
-export type ProjectionKnowledgeSourceKind =
-  'system' | 'exploration' | 'npc' | 'player' | 'document' | 'scene';
-
-export interface ProjectionKnowledgeSource {
-  kind: ProjectionKnowledgeSourceKind;
-  label?: string;
-}
-
-export type ProjectionFreshness = 'just-updated' | 'recent' | 'aging' | 'stale' | 'not-applicable';
-
-export type ProjectionKnowledgePrivacy = 'private' | 'shared' | 'public';
-
-export interface ProjectionKnowledgePresentation {
-  confidence: ProjectionConfidenceBand;
-  source: ProjectionKnowledgeSource;
-  freshness: ProjectionFreshness;
-  privacy: ProjectionKnowledgePrivacy;
-}
 
 export interface ProjectionNodeDetail {
   category?: string;
@@ -88,7 +67,11 @@ export interface ProjectionAnnotation extends ProjectionItemBase<'annotation'> {
 }
 
 export type MapProjectionItem =
-  ProjectionNode | ProjectionRoute | ProjectionArea | ProjectionRing | ProjectionAnnotation;
+  | ProjectionNode
+  | ProjectionRoute
+  | ProjectionArea
+  | ProjectionRing
+  | ProjectionAnnotation;
 
 export interface MapProjection {
   projectionVersion: 1;
