@@ -27,6 +27,15 @@ const forbiddenDetailKeys = [
   'secretPayload',
 ] as const;
 
+const forbiddenKnowledgeSourceKeys = [
+  'canonicalId',
+  'sourceLocationId',
+  'sourceRouteId',
+  'worldId',
+  'ownerUserId',
+  'secretPayload',
+] as const;
+
 describe('assertPlayerProjectionSafe', () => {
   it('accepts deeply nested player-safe projection data', () => {
     expect(() =>
@@ -66,4 +75,28 @@ describe('assertPlayerProjectionSafe', () => {
       `Forbidden player projection key: ${key}`,
     );
   });
+
+  it.each(forbiddenKnowledgeSourceKeys)(
+    'rejects forbidden key %s inside knowledge presentation source',
+    (key) => {
+      const tainted = {
+        projectionVersion: 1,
+        items: [
+          {
+            kind: 'node',
+            knowledgePresentation: {
+              confidence: 'high',
+              source: { kind: 'npc', [key]: 'must-not-leak' },
+              freshness: 'recent',
+              privacy: 'private',
+            },
+          },
+        ],
+      };
+
+      expect(() => assertPlayerProjectionSafe(tainted)).toThrow(
+        `Forbidden player projection key: ${key}`,
+      );
+    },
+  );
 });
