@@ -19,6 +19,7 @@ Included:
 - safe source category plus optional player-known source label;
 - narrative freshness derived from world time, never wall-clock time;
 - a minimal monotonic world-minute coordinate sufficient for freshness calculations;
+- transactional refresh of affected player projections when that coordinate advances;
 - private/shared/public presentation state without implementing sharing actions;
 - strict source parsing, projection schema validation and anti-leak checks;
 - compact node-detail presentation of the four dimensions;
@@ -164,14 +165,16 @@ The player-facing source consists of category plus an optional already-authorize
 
 Rule:
 
-- if the character knows the specific source identity, trusted projection materialization may expose a safe label such as `Mestre Han`;
-- if the character does not know the identity, expose only the category such as `npc`;
+- if the character knows the specific source identity, trusted knowledge data may contain a safe display label such as `Mestre Han`;
+- if the character does not know the identity, the display label is null/absent and only the category such as `npc` is exposed;
 - never resolve or infer the source label in the Player request path by looking up canonical world entities;
 - never expose `sourceRef`, source entity IDs, canonical IDs, database IDs or owner IDs as source labels or fallback values.
 
-`origin_label` in private truth is not automatically player-safe merely because it exists. The materialization path owns the decision to copy an approved display label.
+For 8F, the existing private `origin_label` column is defined narrowly as **the player-known display label for this knowledge record**. A non-null value therefore means trusted server/domain code has already established that this character knows that source label. `null` means only the category is known/presentable.
 
-The player-facing label is plain text, trimmed, non-empty and length-bounded. Initial maximum: 120 Unicode code points after trim. Control-character-only or whitespace-only labels are invalid. No HTML or interpreted Markdown is required.
+If later systems need a canonical source reference or a hidden source identity distinct from what the character knows, that must live in a separate private-only field/entity and must never be overloaded into `origin_label`.
+
+The player-facing label is plain text, trimmed, non-empty and length-bounded. Initial maximum: 120 characters after trim. Whitespace-only/control-character-only labels are invalid. No HTML or interpreted Markdown is required.
 
 ## 7. Freshness uses narrative world time
 
@@ -202,7 +205,7 @@ This is deliberately not the full `clocks de facções/mundo` subsystem deferred
 
 A later calendar may map the scalar coordinate to dates/times without changing the Player presentation contract.
 
-### 7.2 Monotonicity and validity
+### 7.2 Monotonicity and canonical mutation
 
 All world-minute values are integers `>= 0`.
 
@@ -215,6 +218,23 @@ For a knowledge record:
 - malformed or future knowledge time fails closed rather than producing a negative age.
 
 8F does not require a public/player-facing world-minute field.
+
+World-minute advancement must go through a trusted server-side canonical mutation, conceptually equivalent to:
+
+```ts
+advanceWorldMinute(worldId, nextWorldMinute)
+```
+
+The operation must:
+
+1. reject `nextWorldMinute < current_world_minute`;
+2. persist the new minute;
+3. recompute/materialize freshness for all affected player node/route projections in that world;
+4. commit the minute change and derived projection refresh atomically.
+
+There is no background tick. Advancing narrative time is an explicit trusted action.
+
+This transactional refresh is required because `player_api` stores semantic freshness bands rather than raw narrative timestamps. Without it, the exposed projection could remain incorrectly `recent` after the world has advanced.
 
 ### 7.3 Freshness window
 
@@ -264,12 +284,12 @@ Freshness does not automatically mutate `knowledgeState`, confidence or geometry
 Meaning:
 
 - `private`: knowledge currently belongs to this character's private knowledge surface;
-- `shared`: the knowledge is represented as having arrived through a sharing/transmission context;
-- `public`: the knowledge is treated as public knowledge for presentation purposes.
+- `shared`: knowledge is marked as belonging to a bounded/shared informational context rather than purely private or globally public;
+- `public`: knowledge is treated as public knowledge for presentation purposes.
 
 These values are metadata, not ACLs.
 
-They do not grant database access, broaden RLS, reveal another player's row, or implement transmission.
+They do not grant database access, broaden RLS, reveal another player's row, or implement transmission. In 8F, `shared` deliberately does not encode the audience list; the later sharing cut owns actual participants/authorization.
 
 The later KnowledgeFact-sharing cut remains responsible for the actual authorization/data flow for sharing. 8F may seed/materialize `shared` metadata for tests or trusted server scenarios, but does not expose a player action that creates it.
 
@@ -291,9 +311,9 @@ privacy
 
 The exact SQL enum/check implementation is an implementation detail, but every field must be allow-listed and constraint-backed.
 
-Private knowledge for locations and routes gains the narrative-time/privacy inputs needed to derive those values.
+Private knowledge for locations and routes gains the narrative-time/privacy inputs needed to derive those values. Its `origin_label` means only the already-player-known presentation label described in section 6.
 
-The server-side refresh/materialization functions remain the only place where private raw values become player-safe semantic values.
+The server-side refresh/materialization functions remain the only place where private raw values become player-safe semantic values. Knowledge-row changes and explicit world-minute advancement must both keep the corresponding player-facing semantic projection synchronized.
 
 Player clients retain SELECT-only access under owner RLS.
 
@@ -426,6 +446,8 @@ The following are explicit 8F invariants:
 8. A route with high confidence remains constrained by the 8D endpoint-knowledge precision rule.
 9. Real timestamps do not determine narrative freshness.
 10. The browser does not receive raw confidence or raw narrative-time coordinates.
+11. Advancing world time and refreshing derived player-facing freshness is atomic.
+12. A specific source label is present only when that label is already known to that player.
 
 ## 15. Failure policy
 
@@ -443,6 +465,7 @@ Projection/materialization must reject or refuse to expose:
 - negative/non-integer/non-positive freshness window when present;
 - `learned_world_minute > refreshed_world_minute`;
 - `refreshed_world_minute > current_world_minute`;
+- attempted world-minute regression through the canonical mutation path;
 - unexpected metadata keys;
 - identifier-bearing player-facing fields or hidden payload aliases.
 
@@ -460,6 +483,7 @@ Raw DB/internal errors stay sanitized.
 - numeric confidence is absent from player-facing `MapProjection` serialization;
 - node and route share the same semantic envelope shape;
 - known source label vs category-only fallback;
+- null private `origin_label` produces category-only source presentation;
 - malformed/unknown source kind fails;
 - malformed source label fails;
 - privacy enum is strict;
@@ -469,6 +493,7 @@ Raw DB/internal errors stay sanitized.
 - recent/aging/stale thresholds at their exact boundaries;
 - negative/future/regressive time contradictions fail;
 - real timestamp changes alone do not change narrative freshness;
+- advancing world minute changes semantic freshness at the expected boundary;
 - anti-leak guard rejects forbidden key aliases beneath the new envelope;
 - strict schemas reject unknown keys.
 
@@ -479,7 +504,7 @@ Raw DB/internal errors stay sanitized.
 - source falls back to category label when no specific label exists;
 - all freshness labels render correctly;
 - all privacy labels render correctly;
-- no raw confidence, world-minute or timestamp appears;
+- no raw confidence, world-minute or audit timestamp appears in the node panel;
 - selecting a node still causes no fetch/server action/Supabase client request;
 - keyboard/pointer behavior from 8E remains intact.
 
@@ -488,10 +513,13 @@ Raw DB/internal errors stay sanitized.
 - new private columns/constraints rebuild from zero migration history;
 - raw numeric confidence is not readable from `player_api.map_nodes` after 8F;
 - routes expose only qualitative metadata;
+- world minute cannot regress through the trusted canonical advance function;
+- world-minute advance atomically recomputes freshness for affected node and route projections;
+- failed freshness rematerialization rolls back the world-minute advance;
 - owner A cannot read owner B metadata via direct SQL/RLS path;
 - PostgREST A/B leakage smoke proves the same isolation;
 - real Auth A/B projection smoke proves player sessions receive distinct authorized metadata;
-- player cannot mutate player-facing metadata;
+- player cannot mutate player-facing metadata or world time;
 - no `world_private` grant or schema exposure regression;
 - no canonical/source IDs appear in exposed tables;
 - route precision fixtures remain identical to 8D expectations for equivalent knowledge states;
@@ -533,12 +561,13 @@ No merge or deploy is part of 8F unless separately authorized.
 1. raw confidence remains private and Player receives only qualitative confidence;
 2. source is category + optional explicitly player-known label, with no ID lookup/leak;
 3. freshness is derived solely from monotonic in-world minutes plus optional per-knowledge freshness window;
-4. privacy is represented as private/shared/public without implementing sharing authorization;
-5. nodes and routes use the same typed semantic envelope;
-6. the existing node-detail panel presents the four dimensions compactly;
-7. no metadata changes geometry, route precision or authorization;
-8. malformed metadata fails closed and errors remain sanitized;
-9. RLS/PostgREST/Auth A/B and anti-leak tests remain green;
-10. full CI is green on the final documented head;
-11. canonical Drive status is updated only after that evidence exists;
-12. Gate 8 remains open for notes, sharing and mobile-quality work.
+4. explicit world-time advancement atomically refreshes affected player-facing freshness without background ticking;
+5. privacy is represented as private/shared/public without implementing sharing authorization;
+6. nodes and routes use the same typed semantic envelope;
+7. the existing node-detail panel presents the four dimensions compactly;
+8. no metadata changes geometry, route precision or authorization;
+9. malformed metadata fails closed and errors remain sanitized;
+10. RLS/PostgREST/Auth A/B and anti-leak tests remain green;
+11. full CI is green on the final documented head;
+12. canonical Drive status is updated only after that evidence exists;
+13. Gate 8 remains open for notes, sharing and mobile-quality work.
