@@ -142,6 +142,76 @@ select ok(
   ),
   'service role can invoke confidence helper'
 );
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'server_api.player_freshness_v1(bigint,bigint,bigint)',
+    'EXECUTE'
+  ),
+  'authenticated cannot invoke freshness helper'
+);
+
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'world_private.player_location_knowledge'::regclass
+      and conname = 'player_location_knowledge_origin_kind_allowed'
+  ),
+  'location knowledge source kind is allow-listed'
+);
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'world_private.player_route_knowledge'::regclass
+      and conname = 'player_route_knowledge_origin_kind_allowed'
+  ),
+  'route knowledge source kind is allow-listed'
+);
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'world_private.player_location_knowledge'::regclass
+      and conname = 'player_location_knowledge_origin_label_safe'
+  ),
+  'location source label has a bounded player-known contract'
+);
+select ok(
+  exists (
+    select 1
+    from pg_constraint
+    where conrelid = 'world_private.player_route_knowledge'::regclass
+      and conname = 'player_route_knowledge_origin_label_safe'
+  ),
+  'route source label has a bounded player-known contract'
+);
+select ok(
+  exists (
+    select 1
+    from pg_trigger
+    where tgrelid = 'world_private.worlds'::regclass
+      and tgname = 'world_minute_monotonic_guard'
+      and not tgisinternal
+  ),
+  'world minute has an explicit monotonic guard'
+);
+
+update world_private.worlds
+set current_world_minute = 10
+where id = '10000000-0000-4000-8000-000000000001'::uuid;
+
+select throws_ok(
+  $$
+    update world_private.worlds
+    set current_world_minute = 9
+    where id = '10000000-0000-4000-8000-000000000001'::uuid
+  $$,
+  '22023',
+  'world_minute_regression',
+  'world minute cannot regress'
+);
 
 select * from finish();
 rollback;
