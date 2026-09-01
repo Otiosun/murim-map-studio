@@ -16,13 +16,8 @@ const LABEL_OFFSET = 3;
 const NODE_DETAIL_PANEL_ID = 'player-node-detail-panel';
 
 function getNodeAccessibleLabel(node: ProjectionNode) {
-  if (node.label) {
-    return node.label;
-  }
-
-  return node.role === 'ghost'
-    ? 'Local não identificado, localização aproximada'
-    : 'Local conhecido';
+  const base = node.label ?? 'Local não identificado';
+  return node.role === 'ghost' ? `${base}, localização aproximada` : base;
 }
 
 export function PlayerMapSvg({
