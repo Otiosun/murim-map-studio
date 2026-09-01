@@ -37,8 +37,11 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Format check
-        run: pnpm format:check
+      - name: Format probe
+        run: |
+          pnpm prettier --write docs/superpowers/specs/2026-09-01-player-knowledge-metadata-design.md
+          git diff -- docs/superpowers/specs/2026-09-01-player-knowledge-metadata-design.md
+          exit 1
 
       - name: Lint
         run: pnpm lint
