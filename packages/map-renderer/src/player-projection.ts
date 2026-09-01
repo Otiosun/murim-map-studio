@@ -1,7 +1,7 @@
 import type { KnowledgeState, PolylineGeometry, WorldPoint } from '@murim/domain';
+import type { ProjectionKnowledgePresentation } from './knowledge-presentation';
 import type {
   MapProjection,
-  ProjectionKnowledgePresentation,
   ProjectionNode,
   ProjectionNodeDetail,
   ProjectionRoute,
