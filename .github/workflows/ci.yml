@@ -37,16 +37,76 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Format and persist spec
+      - name: Repair and format 8F plan
         run: |
           set -euo pipefail
-          spec='docs/superpowers/specs/2026-09-01-player-knowledge-metadata-design.md'
-          pnpm prettier --write "$spec"
-          if ! git diff --quiet -- "$spec"; then
+          plan='docs/superpowers/plans/2026-09-01-player-knowledge-metadata.md'
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('docs/superpowers/plans/2026-09-01-player-knowledge-metadata.md')
+          text = path.read_text()
+
+          replacements = {
+            "- `origin_label` becomes player-visible only when private state explicitly marks that source identity known to the character.":
+              "- `origin_label` is the already-player-known display label; `NULL` means category-only and hidden source identities must live in separate private-only data.",
+            "- Produces `origin_label_known`, `learned_world_minute`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy` on both private knowledge tables.":
+              "- Produces `learned_world_minute`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy` on both private knowledge tables.",
+            "select has_column('world_private','player_location_knowledge','origin_label_known','location source identity has explicit known flag');\n": "",
+            "select has_column('world_private','player_route_knowledge','origin_label_known','route source identity has explicit known flag');\n": "",
+            "origin_label_known boolean not null default false\n": "",
+            "check (\n  not origin_label_known\n  or (\n    origin_label is not null\n    and origin_label = btrim(origin_label)\n    and char_length(origin_label) between 1 and 120\n  )\n)":
+              "check (\n  origin_label is null\n  or (\n    origin_label = btrim(origin_label)\n    and char_length(origin_label) between 1 and 120\n  )\n)",
+            "origin_label_known=true with NULL/blank label": "blank or over-120-character non-null origin_label",
+            "A hidden rumor: npc, stored private label but known=false, private, refreshed 1380, window 240":
+              "A hidden rumor: npc, NULL label, private, refreshed 1380, window 240",
+            "A village: exploration, known “Chegada própria”, private, refreshed 1440, no window":
+              "A village: exploration, label “Chegada própria”, private, refreshed 1440, no window",
+            "B village: player, known “Contato confiável”, shared, refreshed 1320, window 480":
+              "B village: player, label “Contato confiável”, shared, refreshed 1320, window 480",
+            "B monastery: exploration, known “Investigação própria”, private, refreshed 1440, no window":
+              "B monastery: exploration, label “Investigação própria”, private, refreshed 1440, no window",
+            "A route: npc, known=false, private, refreshed 1380, window 180":
+              "A route: npc, NULL label, private, refreshed 1380, window 180",
+            "B route: exploration, known “Investigação própria”, private, refreshed 1440, no window":
+              "B route: exploration, label “Investigação própria”, private, refreshed 1440, no window",
+            "source_label = trimmed origin_label only when origin_label_known=true, else NULL":
+              "source_label = origin_label when non-null (already player-known by private contract), else NULL",
+            "(`confidence`, `origin_kind`, `origin_label`, `origin_label_known`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy`)":
+              "(`confidence`, `origin_kind`, `origin_label`, `refreshed_world_minute`, `freshness_window_minutes`, `privacy`)",
+            "Assert SELECT strings include the five safe fields and exclude raw `confidence`, narrative-minute fields, `source_location_id` and `source_route_id`.":
+              "Assert SELECT strings include the five safe fields and exclude raw `confidence`, narrative-minute fields, `source_location_id` and `source_route_id`.",
+            "raw confidence, world-minute fields, `origin_label_known`, source/canonical mapping IDs":
+              "raw confidence, world-minute fields, source/canonical mapping IDs",
+            "current_world_minute|learned_world_minute|refreshed_world_minute|freshness_window_minutes|origin_label_known|source_location_id|source_route_id":
+              "current_world_minute|learned_world_minute|refreshed_world_minute|freshness_window_minutes|source_location_id|source_route_id",
+          }
+
+          for old, new in replacements.items():
+            if old not in text:
+              if old.startswith('Assert SELECT strings'):
+                continue
+              raise SystemExit(f'missing expected plan fragment: {old}')
+            text = text.replace(old, new)
+
+          marker = "- [ ] **Step 6: Prove wall-clock timestamps are not freshness inputs**"
+          rollback = """- [ ] **Step 6: Prove atomic rollback when freshness rematerialization fails**\n\nInside the pgTAP transaction, create a test-only `before update of freshness` trigger on `player_api.map_nodes` that raises SQLSTATE `P0001` with `test_freshness_refresh_failure` for one seeded projection. Capture the world's current minute, attempt to advance it, assert the exception, drop the test trigger/function, then assert `current_world_minute` is unchanged. This proves a downstream projection-refresh failure rolls back the world-minute update rather than leaving time and freshness inconsistent.\n\n- [ ] **Step 7: Prove wall-clock timestamps are not freshness inputs**"""
+          if marker not in text:
+            raise SystemExit('missing wall-clock step marker')
+          text = text.replace(marker, rollback, 1)
+          text = text.replace("- [ ] **Step 7: Preserve RLS and route precision**", "- [ ] **Step 8: Preserve RLS and route precision**", 1)
+          text = text.replace("- [ ] **Step 8: Regenerate types, run DB GREEN and commit**", "- [ ] **Step 9: Regenerate types, run DB GREEN and commit**", 1)
+
+          if 'origin_label_known' in text:
+            raise SystemExit('origin_label_known remains in plan')
+          path.write_text(text)
+          PY
+          pnpm prettier --write "$plan"
+          if ! git diff --quiet -- "$plan"; then
             git config user.name 'github-actions[bot]'
             git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
-            git add "$spec"
-            git commit -m 'docs: format 8F knowledge metadata spec'
+            git add "$plan"
+            git commit -m 'docs: align 8F plan with approved source contract'
             git push
           fi
 
