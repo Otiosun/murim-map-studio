@@ -33,12 +33,33 @@ function collectObjectKeys(value: unknown): string[] {
   ]);
 }
 
+const privateExplorationKnowledge = {
+  confidence: 'very-high',
+  source: { kind: 'exploration' },
+  freshness: 'not-applicable',
+  privacy: 'private',
+} as const;
+
+const rumorKnowledge = {
+  confidence: 'low',
+  source: { kind: 'npc', label: 'Mercador desconhecido' },
+  freshness: 'aging',
+  privacy: 'private',
+} as const;
+
+const routeKnowledge = {
+  confidence: 'moderate',
+  source: { kind: 'npc', label: 'Mercador desconhecido' },
+  freshness: 'aging',
+  privacy: 'private',
+} as const;
+
 const village: PlayerProjectionNodeInput = {
   projectionId: 'node-village',
   kind: 'village',
   label: 'Qinghe Village',
   knowledgeState: 'confirmed',
-  confidence: 0.95,
+  knowledgePresentation: privateExplorationKnowledge,
   role: 'known',
   position: { x: 100, y: 200 },
 };
@@ -48,7 +69,7 @@ const hiddenRuinRumor: PlayerProjectionNodeInput = {
   kind: 'ruin',
   label: 'Unknown ruins',
   knowledgeState: 'rumor',
-  confidence: 0.35,
+  knowledgePresentation: rumorKnowledge,
   role: 'ghost',
   position: { x: 820, y: 860 },
   approximateRadius: 180,
@@ -60,6 +81,7 @@ const visibleRoute: PlayerProjectionRouteInput = {
   toProjectionId: 'node-hidden-rumor',
   label: 'Old trail',
   knowledgeState: 'indication',
+  knowledgePresentation: routeKnowledge,
   path: {
     kind: 'polyline',
     points: [
@@ -93,7 +115,7 @@ describe('buildPlayerMapProjection', () => {
           symbolKey: 'location:village',
           label: 'Qinghe Village',
           knowledgeState: 'confirmed',
-          confidence: 0.95,
+          knowledgePresentation: privateExplorationKnowledge,
         },
         {
           id: 'node-hidden-rumor',
@@ -104,7 +126,7 @@ describe('buildPlayerMapProjection', () => {
           symbolKey: 'location:ruin',
           label: 'Unknown ruins',
           knowledgeState: 'rumor',
-          confidence: 0.35,
+          knowledgePresentation: rumorKnowledge,
           approximateLocation: {
             center: { x: 820, y: 860 },
             radius: 180,
@@ -112,6 +134,7 @@ describe('buildPlayerMapProjection', () => {
         },
       ],
     });
+    expect(JSON.stringify(projection)).not.toMatch(/"confidence":\s*0(?:\.|,|})/);
   });
 
   test('copies only the supplied typed node detail into the projection', () => {
@@ -124,7 +147,7 @@ describe('buildPlayerMapProjection', () => {
           kind: 'settlement',
           label: 'Vila Qinghe',
           knowledgeState: 'confirmed',
-          confidence: 1,
+          knowledgePresentation: privateExplorationKnowledge,
           role: 'known',
           position: { x: 100, y: 120 },
           detail: { category: 'Vila', summary: 'Um assentamento conhecido.' },
@@ -149,7 +172,7 @@ describe('buildPlayerMapProjection', () => {
           kind: 'settlement',
           label: 'Vila Qinghe',
           knowledgeState: 'confirmed',
-          confidence: 1,
+          knowledgePresentation: privateExplorationKnowledge,
           role: 'known',
           position: { x: 100, y: 120 },
         },
@@ -172,6 +195,12 @@ describe('buildPlayerMapProjection', () => {
           fromProjectionId: 'node-village',
           toProjectionId: 'canonical-location-not-projected',
           knowledgeState: 'rumor',
+          knowledgePresentation: {
+            confidence: 'low',
+            source: { kind: 'system' },
+            freshness: 'not-applicable',
+            privacy: 'private',
+          },
           path: {
             kind: 'polyline',
             points: [
@@ -201,6 +230,7 @@ describe('buildPlayerMapProjection', () => {
         styleKey: 'route:indication',
         label: 'Old trail',
         knowledgeState: 'indication',
+        knowledgePresentation: routeKnowledge,
       },
     ]);
   });
@@ -261,7 +291,12 @@ describe('buildPlayerMapProjection', () => {
       kind: 'monastery',
       label: 'Unknown structure',
       knowledgeState: 'rumor',
-      confidence: 0.3,
+      knowledgePresentation: {
+        confidence: 'low',
+        source: { kind: 'npc' },
+        freshness: 'aging',
+        privacy: 'private',
+      },
       role: 'ghost',
       position: { x: 820, y: 860 },
       approximateRadius: 180,
@@ -271,7 +306,12 @@ describe('buildPlayerMapProjection', () => {
       kind: 'monastery',
       label: 'Hidden Monastery',
       knowledgeState: 'investigated',
-      confidence: 0.95,
+      knowledgePresentation: {
+        confidence: 'very-high',
+        source: { kind: 'exploration' },
+        freshness: 'not-applicable',
+        privacy: 'private',
+      },
       role: 'known',
       position: { x: 900, y: 900 },
     };
