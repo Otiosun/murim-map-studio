@@ -1,6 +1,7 @@
 import type { KnowledgeState, PolylineGeometry, WorldPoint } from '@murim/domain';
 import type {
   MapProjection,
+  ProjectionKnowledgePresentation,
   ProjectionNode,
   ProjectionNodeDetail,
   ProjectionRoute,
@@ -11,7 +12,7 @@ export interface PlayerProjectionNodeInput {
   kind: string;
   label: string;
   knowledgeState: KnowledgeState;
-  confidence: number;
+  knowledgePresentation: ProjectionKnowledgePresentation;
   role: 'known' | 'ghost';
   position: WorldPoint;
   approximateRadius?: number;
@@ -24,6 +25,7 @@ export interface PlayerProjectionRouteInput {
   toProjectionId: string;
   label?: string;
   knowledgeState: KnowledgeState;
+  knowledgePresentation: ProjectionKnowledgePresentation;
   path: PolylineGeometry;
 }
 
@@ -44,7 +46,7 @@ function buildNode(input: PlayerProjectionNodeInput): ProjectionNode {
     symbolKey: `location:${input.kind}`,
     label: input.label,
     knowledgeState: input.knowledgeState,
-    confidence: input.confidence,
+    knowledgePresentation: input.knowledgePresentation,
     ...(input.detail === undefined ? {} : { detail: input.detail }),
   };
 
@@ -80,6 +82,7 @@ function buildRoute(input: PlayerProjectionRouteInput): ProjectionRoute {
     styleKey: `route:${input.knowledgeState}`,
     ...(input.label === undefined ? {} : { label: input.label }),
     knowledgeState: input.knowledgeState,
+    knowledgePresentation: input.knowledgePresentation,
   };
 }
 
