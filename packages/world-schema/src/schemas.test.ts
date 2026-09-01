@@ -204,7 +204,9 @@ describe('mapProjectionSchema', () => {
   });
 
   it('accepts the same strict knowledge envelope on nodes and routes', () => {
-    const projection = projectionWithKnowledgePresentation(knowledgePresentation);
+    const projection = projectionWithKnowledgePresentation(
+      knowledgePresentation,
+    );
 
     expect(parseMapProjection(projection)).toEqual(projection);
   });
@@ -227,27 +229,41 @@ describe('mapProjectionSchema', () => {
     { ...knowledgePresentation, freshness: 'fresh' },
     { ...knowledgePresentation, privacy: 'friends-only' },
     { ...knowledgePresentation, source: { kind: 'npc', label: '   ' } },
-    { ...knowledgePresentation, source: { kind: 'npc', label: '🀄'.repeat(121) } },
+    {
+      ...knowledgePresentation,
+      source: { kind: 'npc', label: '🀄'.repeat(121) },
+    },
     { ...knowledgePresentation, source: { kind: 'npc', sourceRef: WORLD_ID } },
     { ...knowledgePresentation, source: { kind: 'npc', sourceId: WORLD_ID } },
-    { ...knowledgePresentation, source: { kind: 'npc', canonicalId: WORLD_ID } },
+    {
+      ...knowledgePresentation,
+      source: { kind: 'npc', canonicalId: WORLD_ID },
+    },
     { ...knowledgePresentation, unexpected: true },
   ])('rejects invalid player knowledge presentation %#', (presentation) => {
-    expect(() => parseMapProjection(projectionWithKnowledgePresentation(presentation))).toThrow();
+    expect(() =>
+      parseMapProjection(projectionWithKnowledgePresentation(presentation)),
+    ).toThrow();
   });
 
   it('rejects missing knowledge presentation on player node and route items', () => {
-    const projection = projectionWithKnowledgePresentation(knowledgePresentation);
+    const projection = projectionWithKnowledgePresentation(
+      knowledgePresentation,
+    );
     const withoutPresentation = {
       ...projection,
-      items: projection.items.map(({ knowledgePresentation: _knowledgePresentation, ...item }) => item),
+      items: projection.items.map(
+        ({ knowledgePresentation: _knowledgePresentation, ...item }) => item,
+      ),
     };
 
     expect(() => parseMapProjection(withoutPresentation)).toThrow();
   });
 
   it('rejects legacy numeric confidence in the player projection contract', () => {
-    const projection = projectionWithKnowledgePresentation(knowledgePresentation);
+    const projection = projectionWithKnowledgePresentation(
+      knowledgePresentation,
+    );
     const legacy = {
       ...projection,
       items: projection.items.map((item) => ({ ...item, confidence: 0.95 })),
