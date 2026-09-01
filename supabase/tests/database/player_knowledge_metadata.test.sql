@@ -35,77 +35,21 @@ select has_column(
   'route knowledge has privacy metadata'
 );
 
-select is(
-  server_api.player_confidence_band_v1(0.0000),
-  'low'::text,
-  '0 is low'
-);
-select is(
-  server_api.player_confidence_band_v1(0.3999),
-  'low'::text,
-  '0.3999 is low'
-);
-select is(
-  server_api.player_confidence_band_v1(0.4000),
-  'moderate'::text,
-  '0.4 is moderate'
-);
-select is(
-  server_api.player_confidence_band_v1(0.6999),
-  'moderate'::text,
-  '0.6999 is moderate'
-);
-select is(
-  server_api.player_confidence_band_v1(0.7000),
-  'high'::text,
-  '0.7 is high'
-);
-select is(
-  server_api.player_confidence_band_v1(0.8999),
-  'high'::text,
-  '0.8999 is high'
-);
-select is(
-  server_api.player_confidence_band_v1(0.9000),
-  'very-high'::text,
-  '0.9 is very high'
-);
-select is(
-  server_api.player_confidence_band_v1(1.0000),
-  'very-high'::text,
-  '1 is very high'
-);
+select is(server_api.player_confidence_band_v1(0.0000), 'low'::text, '0 is low');
+select is(server_api.player_confidence_band_v1(0.3999), 'low'::text, '0.3999 is low');
+select is(server_api.player_confidence_band_v1(0.4000), 'moderate'::text, '0.4 is moderate');
+select is(server_api.player_confidence_band_v1(0.6999), 'moderate'::text, '0.6999 is moderate');
+select is(server_api.player_confidence_band_v1(0.7000), 'high'::text, '0.7 is high');
+select is(server_api.player_confidence_band_v1(0.8999), 'high'::text, '0.8999 is high');
+select is(server_api.player_confidence_band_v1(0.9000), 'very-high'::text, '0.9 is very high');
+select is(server_api.player_confidence_band_v1(1.0000), 'very-high'::text, '1 is very high');
 
-select is(
-  server_api.player_freshness_v1(100, 100, 60),
-  'just-updated'::text,
-  'age zero is just updated'
-);
-select is(
-  server_api.player_freshness_v1(129, 100, 60),
-  'recent'::text,
-  'first half is recent'
-);
-select is(
-  server_api.player_freshness_v1(130, 100, 60),
-  'aging'::text,
-  'half window is aging'
-);
-select is(
-  server_api.player_freshness_v1(159, 100, 60),
-  'aging'::text,
-  'last minute before window is aging'
-);
-select is(
-  server_api.player_freshness_v1(160, 100, 60),
-  'stale'::text,
-  'full window is stale'
-);
-select is(
-  server_api.player_freshness_v1(500, 100, null),
-  'not-applicable'::text,
-  'no window means not applicable'
-);
+select is(server_api.player_freshness_v1(100, 100, 60), 'just-updated'::text, 'age zero is just updated');
+select is(server_api.player_freshness_v1(129, 100, 60), 'recent'::text, 'first half is recent');
+select is(server_api.player_freshness_v1(130, 100, 60), 'aging'::text, 'half window is aging');
+select is(server_api.player_freshness_v1(159, 100, 60), 'aging'::text, 'last minute before window is aging');
+select is(server_api.player_freshness_v1(160, 100, 60), 'stale'::text, 'full window is stale');
+select is(server_api.player_freshness_v1(500, 100, null), 'not-applicable'::text, 'no window means not applicable');
 
 select throws_ok(
   $$select server_api.player_freshness_v1(100, 101, 60)$$,
@@ -127,34 +71,21 @@ select throws_ok(
 );
 
 select ok(
-  not has_function_privilege(
-    'authenticated',
-    'server_api.player_confidence_band_v1(numeric)',
-    'EXECUTE'
-  ),
+  not has_function_privilege('authenticated', 'server_api.player_confidence_band_v1(numeric)', 'EXECUTE'),
   'authenticated cannot invoke confidence helper'
 );
 select ok(
-  has_function_privilege(
-    'service_role',
-    'server_api.player_confidence_band_v1(numeric)',
-    'EXECUTE'
-  ),
+  has_function_privilege('service_role', 'server_api.player_confidence_band_v1(numeric)', 'EXECUTE'),
   'service role can invoke confidence helper'
 );
 select ok(
-  not has_function_privilege(
-    'authenticated',
-    'server_api.player_freshness_v1(bigint,bigint,bigint)',
-    'EXECUTE'
-  ),
+  not has_function_privilege('authenticated', 'server_api.player_freshness_v1(bigint,bigint,bigint)', 'EXECUTE'),
   'authenticated cannot invoke freshness helper'
 );
 
 select ok(
   exists (
-    select 1
-    from pg_constraint
+    select 1 from pg_constraint
     where conrelid = 'world_private.player_location_knowledge'::regclass
       and conname = 'player_location_knowledge_origin_kind_allowed'
   ),
@@ -162,8 +93,7 @@ select ok(
 );
 select ok(
   exists (
-    select 1
-    from pg_constraint
+    select 1 from pg_constraint
     where conrelid = 'world_private.player_route_knowledge'::regclass
       and conname = 'player_route_knowledge_origin_kind_allowed'
   ),
@@ -171,8 +101,7 @@ select ok(
 );
 select ok(
   exists (
-    select 1
-    from pg_constraint
+    select 1 from pg_constraint
     where conrelid = 'world_private.player_location_knowledge'::regclass
       and conname = 'player_location_knowledge_origin_label_safe'
   ),
@@ -180,8 +109,7 @@ select ok(
 );
 select ok(
   exists (
-    select 1
-    from pg_constraint
+    select 1 from pg_constraint
     where conrelid = 'world_private.player_route_knowledge'::regclass
       and conname = 'player_route_knowledge_origin_label_safe'
   ),
@@ -189,8 +117,7 @@ select ok(
 );
 select ok(
   exists (
-    select 1
-    from pg_trigger
+    select 1 from pg_trigger
     where tgrelid = 'world_private.worlds'::regclass
       and tgname = 'world_minute_monotonic_guard'
       and not tgisinternal
@@ -211,6 +138,114 @@ select throws_ok(
   '22023',
   'world_minute_regression',
   'world minute cannot regress'
+);
+
+-- Player-facing projection must contain only semantic metadata.
+select hasnt_column('player_api', 'map_nodes', 'confidence', 'numeric node confidence is not player readable');
+select has_column('player_api', 'map_nodes', 'confidence_band', 'node exposes qualitative confidence');
+select has_column('player_api', 'map_nodes', 'source_kind', 'node exposes source category');
+select has_column('player_api', 'map_nodes', 'source_label', 'node exposes optional known source label');
+select has_column('player_api', 'map_nodes', 'freshness', 'node exposes semantic freshness');
+select has_column('player_api', 'map_nodes', 'privacy', 'node exposes descriptive privacy');
+select has_column('player_api', 'map_routes', 'confidence_band', 'route exposes qualitative confidence');
+select has_column('player_api', 'map_routes', 'source_kind', 'route exposes source category');
+select has_column('player_api', 'map_routes', 'source_label', 'route exposes optional known source label');
+select has_column('player_api', 'map_routes', 'freshness', 'route exposes semantic freshness');
+select has_column('player_api', 'map_routes', 'privacy', 'route exposes descriptive privacy');
+select hasnt_column('player_api', 'map_nodes', 'refreshed_world_minute', 'node does not expose raw narrative time');
+select hasnt_column('player_api', 'map_routes', 'refreshed_world_minute', 'route does not expose raw narrative time');
+
+select results_eq(
+  $$
+    select confidence_band, source_kind, source_label, freshness, privacy
+    from player_api.map_nodes
+    where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+      and projection_id = '91000000-0000-4000-8000-000000000002'::uuid
+  $$,
+  $$values ('low'::text, 'npc'::text, 'Mercador desconhecido'::text, 'aging'::text, 'private'::text)$$,
+  'player A rumor is materialized as safe semantic metadata'
+);
+
+select results_eq(
+  $$
+    select confidence_band, source_kind, source_label, freshness, privacy
+    from player_api.map_nodes
+    where owner_user_id = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbb2'::uuid
+      and projection_id = '92000000-0000-4000-8000-000000000001'::uuid
+  $$,
+  $$values ('very-high'::text, 'player'::text, 'Contato confiável'::text, 'not-applicable'::text, 'shared'::text)$$,
+  'shared village metadata exposes only safe source semantics'
+);
+
+select results_eq(
+  $$
+    select confidence_band, source_kind, source_label, freshness, privacy
+    from player_api.map_routes
+    where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+      and projection_id = '93000000-0000-4000-8000-000000000001'::uuid
+  $$,
+  $$values ('moderate'::text, 'npc'::text, 'Mercador desconhecido'::text, 'aging'::text, 'private'::text)$$,
+  'route metadata uses the same safe semantic dimensions'
+);
+
+select ok(
+  not has_function_privilege(
+    'authenticated',
+    'server_api.advance_world_minute_v1(uuid,bigint)',
+    'EXECUTE'
+  ),
+  'authenticated cannot advance narrative world time'
+);
+select ok(
+  has_function_privilege(
+    'service_role',
+    'server_api.advance_world_minute_v1(uuid,bigint)',
+    'EXECUTE'
+  ),
+  'service role can advance narrative world time'
+);
+
+-- A projection refresh failure must roll back the world-minute update atomically.
+update world_private.player_route_knowledge
+set refreshed_world_minute = 999
+where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+  and projection_id = '93000000-0000-4000-8000-000000000001'::uuid;
+
+select throws_ok(
+  $$select server_api.advance_world_minute_v1('10000000-0000-4000-8000-000000000001'::uuid, 400)$$,
+  '22023',
+  'future_knowledge_world_minute',
+  'world-minute advance fails closed if a projection cannot be refreshed'
+);
+select is(
+  (select current_world_minute from world_private.worlds where id = '10000000-0000-4000-8000-000000000001'::uuid),
+  310::bigint,
+  'failed advance leaves current world minute unchanged'
+);
+
+update world_private.player_route_knowledge
+set refreshed_world_minute = 190
+where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+  and projection_id = '93000000-0000-4000-8000-000000000001'::uuid;
+
+select lives_ok(
+  $$select server_api.advance_world_minute_v1('10000000-0000-4000-8000-000000000001'::uuid, 400)$$,
+  'trusted world-minute advance succeeds when all knowledge is coherent'
+);
+select is(
+  (select current_world_minute from world_private.worlds where id = '10000000-0000-4000-8000-000000000001'::uuid),
+  400::bigint,
+  'successful advance commits the new world minute'
+);
+select results_eq(
+  $$
+    select freshness
+    from player_api.map_routes
+    where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
+      and projection_id = '93000000-0000-4000-8000-000000000001'::uuid
+  $$,
+  $$values ('stale'::text)$$,
+  'world-minute advance recomputes route freshness atomically'
 );
 
 select * from finish();
