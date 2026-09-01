@@ -124,6 +124,15 @@ select ok(
   ),
   'world minute has an explicit monotonic guard'
 );
+select ok(
+  exists (
+    select 1 from pg_trigger
+    where tgrelid = 'world_private.worlds'::regclass
+      and tgname = 'world_minute_knowledge_metadata_refresh'
+      and not tgisinternal
+  ),
+  'world minute changes refresh player-safe freshness atomically'
+);
 
 update world_private.worlds
 set current_world_minute = current_world_minute + 10
@@ -205,11 +214,17 @@ select ok(
   'service role can advance narrative world time'
 );
 
--- A projection refresh failure must roll back the world-minute update atomically.
+-- Inject a deliberately incoherent private record without letting the normal
+-- route sync reject it first. This isolates the atomic world-minute refresh
+-- contract under test; the whole pgTAP file is rolled back at the end.
+alter table world_private.player_route_knowledge
+  disable trigger player_route_knowledge_projection_sync;
 update world_private.player_route_knowledge
 set refreshed_world_minute = 999
 where owner_user_id = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1'::uuid
   and projection_id = '93000000-0000-4000-8000-000000000001'::uuid;
+alter table world_private.player_route_knowledge
+  enable trigger player_route_knowledge_projection_sync;
 
 select throws_ok(
   $$select server_api.advance_world_minute_v1('10000000-0000-4000-8000-000000000001'::uuid, 400)$$,
