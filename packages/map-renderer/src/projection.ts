@@ -98,7 +98,11 @@ export interface ProjectionAnnotation extends ProjectionItemBase<'annotation'> {
 }
 
 export type MapProjectionItem =
-  ProjectionNode | ProjectionRoute | ProjectionArea | ProjectionRing | ProjectionAnnotation;
+  | ProjectionNode
+  | ProjectionRoute
+  | ProjectionArea
+  | ProjectionRing
+  | ProjectionAnnotation;
 
 export interface MapProjection {
   projectionVersion: 1;
