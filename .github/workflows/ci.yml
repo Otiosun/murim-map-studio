@@ -8,7 +8,7 @@ on:
       - 'foundation/**'
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
   quality:
@@ -19,7 +19,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
         with:
-          persist-credentials: false
+          persist-credentials: true
 
       - name: Setup Node.js
         uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6.5.0
@@ -37,11 +37,21 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Format probe
+      - name: Format and persist spec
         run: |
-          pnpm prettier --write docs/superpowers/specs/2026-09-01-player-knowledge-metadata-design.md
-          git diff -- docs/superpowers/specs/2026-09-01-player-knowledge-metadata-design.md
-          exit 1
+          set -euo pipefail
+          spec='docs/superpowers/specs/2026-09-01-player-knowledge-metadata-design.md'
+          pnpm prettier --write "$spec"
+          if ! git diff --quiet -- "$spec"; then
+            git config user.name 'github-actions[bot]'
+            git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+            git add "$spec"
+            git commit -m 'docs: format 8F knowledge metadata spec'
+            git push
+          fi
+
+      - name: Format check
+        run: pnpm format:check
 
       - name: Lint
         run: pnpm lint
