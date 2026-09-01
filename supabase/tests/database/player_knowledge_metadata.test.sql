@@ -199,13 +199,13 @@ select ok(
 );
 
 update world_private.worlds
-set current_world_minute = 10
+set current_world_minute = current_world_minute + 10
 where id = '10000000-0000-4000-8000-000000000001'::uuid;
 
 select throws_ok(
   $$
     update world_private.worlds
-    set current_world_minute = 9
+    set current_world_minute = current_world_minute - 1
     where id = '10000000-0000-4000-8000-000000000001'::uuid
   $$,
   '22023',

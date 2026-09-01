@@ -5,12 +5,13 @@ values
   ('cccccccc-cccc-4ccc-8ccc-ccccccccccc3', 'narrator'),
   ('dddddddd-dddd-4ddd-8ddd-ddddddddddd4', 'admin');
 
-insert into world_private.worlds (id, slug, name, schema_version)
+insert into world_private.worlds (id, slug, name, schema_version, current_world_minute)
 values (
   '10000000-0000-4000-8000-000000000001',
   'outer-ring-v0',
   'Círculo Exterior — Mundo de Teste',
-  1
+  1,
+  300
 );
 
 insert into world_private.rings (
@@ -121,6 +122,10 @@ insert into world_private.player_location_knowledge (
   origin_label,
   approximate_geom,
   approximate_radius,
+  learned_world_minute,
+  refreshed_world_minute,
+  freshness_window_minutes,
+  privacy,
   learned_at,
   refreshed_at
 )
@@ -131,10 +136,14 @@ values
     '91000000-0000-4000-8000-000000000001',
     'confirmed',
     1.0,
-    'personal-exploration',
-    'arrival',
+    'exploration',
+    null,
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
     null,
+    120,
+    120,
+    null,
+    'public',
     '2026-08-29T12:00:00Z',
     '2026-08-29T12:00:00Z'
   ),
@@ -144,10 +153,14 @@ values
     '91000000-0000-4000-8000-000000000002',
     'rumor',
     0.35,
-    'npc-rumor',
-    'mercador desconhecido',
+    'npc',
+    'Mercador desconhecido',
     extensions.st_setsrid(extensions.st_makepoint(820, 860), 0),
     180,
+    180,
+    180,
+    240,
+    'private',
     '2026-08-29T13:00:00Z',
     '2026-08-29T13:00:00Z'
   ),
@@ -157,10 +170,14 @@ values
     '92000000-0000-4000-8000-000000000001',
     'confirmed',
     1.0,
-    'shared-map',
-    'contato confiável',
+    'player',
+    'Contato confiável',
     extensions.st_setsrid(extensions.st_makepoint(100, 120), 0),
     null,
+    150,
+    150,
+    null,
+    'shared',
     '2026-08-29T12:30:00Z',
     '2026-08-29T12:30:00Z'
   ),
@@ -170,10 +187,14 @@ values
     '92000000-0000-4000-8000-000000000002',
     'investigated',
     0.95,
-    'personal-exploration',
-    'investigação própria',
+    'exploration',
+    null,
     extensions.st_setsrid(extensions.st_makepoint(900, 900), 0),
     null,
+    210,
+    270,
+    null,
+    'private',
     '2026-08-29T14:00:00Z',
     '2026-08-29T15:00:00Z'
   );
@@ -254,6 +275,10 @@ insert into world_private.player_route_knowledge (
   confidence,
   origin_kind,
   origin_label,
+  learned_world_minute,
+  refreshed_world_minute,
+  freshness_window_minutes,
+  privacy,
   learned_at,
   refreshed_at
 )
@@ -264,8 +289,12 @@ values
     '93000000-0000-4000-8000-000000000001',
     'indication',
     0.45,
-    'npc-rumor',
-    'mercador desconhecido',
+    'npc',
+    'Mercador desconhecido',
+    190,
+    190,
+    180,
+    'private',
     '2026-08-29T13:30:00Z',
     '2026-08-29T13:30:00Z'
   ),
@@ -275,8 +304,12 @@ values
     '94000000-0000-4000-8000-000000000001',
     'investigated',
     0.95,
-    'personal-exploration',
-    'investigação própria',
+    'exploration',
+    null,
+    220,
+    270,
+    120,
+    'private',
     '2026-08-29T15:00:00Z',
     '2026-08-29T15:00:00Z'
   );

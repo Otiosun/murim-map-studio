@@ -41,6 +41,77 @@ alter table world_private.player_route_knowledge
   add constraint player_route_knowledge_privacy_allowed
     check (privacy in ('private', 'shared', 'public'));
 
+-- Normalize only legacy V0 source categories that existed before the source
+-- vocabulary became strict. Unknown values still fail when the constraints are
+-- installed so migration never silently invents a source category.
+update world_private.player_location_knowledge
+set origin_kind = case origin_kind
+  when 'personal-exploration' then 'exploration'
+  when 'npc-rumor' then 'npc'
+  when 'shared-map' then 'player'
+  else origin_kind
+end
+where origin_kind in ('personal-exploration', 'npc-rumor', 'shared-map');
+
+update world_private.player_route_knowledge
+set origin_kind = case origin_kind
+  when 'personal-exploration' then 'exploration'
+  when 'npc-rumor' then 'npc'
+  when 'shared-map' then 'player'
+  else origin_kind
+end
+where origin_kind in ('personal-exploration', 'npc-rumor', 'shared-map');
+
+alter table world_private.player_location_knowledge
+  add constraint player_location_knowledge_origin_kind_allowed
+    check (origin_kind in ('system', 'exploration', 'npc', 'player', 'document', 'scene')),
+  add constraint player_location_knowledge_origin_label_safe
+    check (
+      origin_label is null
+      or (
+        btrim(origin_label) <> ''
+        and char_length(btrim(origin_label)) <= 120
+        and btrim(origin_label) !~ '^[[:cntrl:][:space:]]*$'
+      )
+    );
+
+alter table world_private.player_route_knowledge
+  add constraint player_route_knowledge_origin_kind_allowed
+    check (origin_kind in ('system', 'exploration', 'npc', 'player', 'document', 'scene')),
+  add constraint player_route_knowledge_origin_label_safe
+    check (
+      origin_label is null
+      or (
+        btrim(origin_label) <> ''
+        and char_length(btrim(origin_label)) <= 120
+        and btrim(origin_label) !~ '^[[:cntrl:][:space:]]*$'
+      )
+    );
+
+create function world_private.guard_world_minute_monotonic_v1()
+returns trigger
+language plpgsql
+set search_path = pg_catalog, world_private
+as $$
+begin
+  if new.current_world_minute < old.current_world_minute then
+    raise exception using errcode = '22023', message = 'world_minute_regression';
+  end if;
+
+  return new;
+end;
+$$;
+
+revoke all on function world_private.guard_world_minute_monotonic_v1()
+  from public, anon, authenticated;
+
+grant execute on function world_private.guard_world_minute_monotonic_v1()
+  to service_role;
+
+create trigger world_minute_monotonic_guard
+  before update of current_world_minute on world_private.worlds
+  for each row execute function world_private.guard_world_minute_monotonic_v1();
+
 create function server_api.player_confidence_band_v1(p_confidence numeric)
 returns text
 language plpgsql
