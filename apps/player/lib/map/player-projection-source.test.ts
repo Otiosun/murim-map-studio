@@ -9,6 +9,17 @@ const generatedAt = '2026-08-30T20:50:00.000Z';
 
 type TableName = 'map_nodes' | 'map_routes';
 
+function safeKnowledgeRow(overrides: Record<string, unknown> = {}) {
+  return {
+    confidence_band: 'very-high',
+    source_kind: 'exploration',
+    source_label: 'Chegada própria',
+    freshness: 'not-applicable',
+    privacy: 'private',
+    ...overrides,
+  };
+}
+
 function nodeRow(overrides: Record<string, unknown> = {}) {
   return {
     owner_user_id: playerId,
@@ -16,7 +27,7 @@ function nodeRow(overrides: Record<string, unknown> = {}) {
     kind: 'village',
     label: 'Qinghe Village',
     knowledge_state: 'confirmed',
-    confidence: 0.95,
+    ...safeKnowledgeRow(),
     role: 'known',
     approximate_radius: null,
     geom: { type: 'Point', coordinates: [100, 200] },
@@ -34,6 +45,13 @@ function routeRow(overrides: Record<string, unknown> = {}) {
     to_projection_id: ghostId,
     label: 'Old trail',
     knowledge_state: 'indication',
+    ...safeKnowledgeRow({
+      confidence_band: 'moderate',
+      source_kind: 'npc',
+      source_label: null,
+      freshness: 'recent',
+      privacy: 'shared',
+    }),
     geom: {
       type: 'LineString',
       coordinates: [
@@ -86,13 +104,16 @@ function createSource(rows: Record<TableName, unknown[]>, now: () => string = ()
 }
 
 describe('createSupabasePlayerProjectionSource', () => {
-  it('loads only player-scoped rows and builds a strict safe projection', async () => {
+  it('loads only player-safe semantic metadata and builds a strict projection', async () => {
     const ghost = nodeRow({
       projection_id: ghostId,
       kind: 'ruin',
       label: 'Unknown ruins',
       knowledge_state: 'rumor',
-      confidence: 0.35,
+      confidence_band: 'low',
+      source_kind: 'npc',
+      source_label: null,
+      freshness: 'recent',
       role: 'ghost',
       approximate_radius: 180,
       geom: { type: 'Point', coordinates: [820, 860] },
@@ -111,20 +132,57 @@ describe('createSupabasePlayerProjectionSource', () => {
       column: 'owner_user_id',
       value: playerId,
     });
+    expect(calls[0]?.columns).toContain('confidence_band');
+    expect(calls[0]?.columns).toContain('source_kind');
+    expect(calls[0]?.columns).toContain('source_label');
+    expect(calls[0]?.columns).toContain('freshness');
+    expect(calls[0]?.columns).toContain('privacy');
     expect(calls[0]?.columns).toContain('details');
+    expect(calls[0]?.columns).not.toMatch(/(^|,)confidence(,|$)/);
+    expect(calls[0]?.columns).not.toContain('world_minute');
+    expect(calls[0]?.columns).not.toContain('source_location_id');
     expect(calls[1]).toMatchObject({
       schema: 'player_api',
       table: 'map_routes',
       column: 'owner_user_id',
       value: playerId,
     });
+    expect(calls[1]?.columns).toContain('confidence_band');
+    expect(calls[1]?.columns).not.toMatch(/(^|,)confidence(,|$)/);
+    expect(calls[1]?.columns).not.toContain('world_minute');
+    expect(calls[1]?.columns).not.toContain('source_route_id');
+
     expect(projection.projectionVersion).toBe(1);
     expect(projection.mapKey).toBe('player-map');
     expect(projection.generatedAt).toBe(generatedAt);
-    expect(projection.items[0]).toMatchObject({ kind: 'node', position: { x: 100, y: 200 } });
+    expect(projection.items[0]).toMatchObject({
+      kind: 'node',
+      position: { x: 100, y: 200 },
+      knowledgePresentation: {
+        confidence: 'very-high',
+        source: { kind: 'exploration', label: 'Chegada própria' },
+        freshness: 'not-applicable',
+        privacy: 'private',
+      },
+    });
     expect(projection.items[0]).not.toHaveProperty('detail');
+    expect(projection.items[1]).toMatchObject({
+      kind: 'node',
+      knowledgePresentation: {
+        confidence: 'low',
+        source: { kind: 'npc' },
+        freshness: 'recent',
+        privacy: 'private',
+      },
+    });
     expect(projection.items[2]).toMatchObject({
       kind: 'route',
+      knowledgePresentation: {
+        confidence: 'moderate',
+        source: { kind: 'npc' },
+        freshness: 'recent',
+        privacy: 'shared',
+      },
       path: {
         kind: 'polyline',
         points: [
@@ -133,7 +191,12 @@ describe('createSupabasePlayerProjectionSource', () => {
         ],
       },
     });
-    expect(JSON.stringify(projection)).not.toContain('canonicalId');
+    const serialized = JSON.stringify(projection);
+    expect(serialized).not.toContain('canonicalId');
+    expect(serialized).not.toContain('source_location_id');
+    expect(serialized).not.toContain('source_route_id');
+    expect(serialized).not.toContain('refreshed_world_minute');
+    expect(serialized).not.toContain('learned_world_minute');
     expect(projection.items).toHaveLength(3);
   });
 
@@ -176,6 +239,56 @@ describe('createSupabasePlayerProjectionSource', () => {
     });
 
     await expect(source.load(playerId)).rejects.toThrow('Invalid player map node detail');
+  });
+
+  it('accepts and trims a known source label by Unicode code points', async () => {
+    const label = `  ${'🀄'.repeat(120)}  `;
+    const { source } = createSource({
+      map_nodes: [nodeRow({ source_kind: 'document', source_label: label })],
+      map_routes: [],
+    });
+
+    const projection = await source.load(playerId);
+
+    expect(projection.items[0]).toMatchObject({
+      knowledgePresentation: {
+        source: { kind: 'document', label: '🀄'.repeat(120) },
+      },
+    });
+  });
+
+  it('omits source label when the player does not know the specific source', async () => {
+    const { source } = createSource({
+      map_nodes: [nodeRow({ source_kind: 'npc', source_label: null })],
+      map_routes: [],
+    });
+
+    const projection = await source.load(playerId);
+
+    expect(projection.items[0]).toMatchObject({
+      knowledgePresentation: { source: { kind: 'npc' } },
+    });
+    expect(
+      (projection.items[0] as { knowledgePresentation: { source: Record<string, unknown> } })
+        .knowledgePresentation.source,
+    ).not.toHaveProperty('label');
+  });
+
+  it.each([
+    ['confidence_band', 'certain'],
+    ['source_kind', 'oracle'],
+    ['freshness', 'fresh'],
+    ['privacy', 'friends-only'],
+    ['source_label', '   '],
+    ['source_label', '🀄'.repeat(121)],
+    ['source_label', 123],
+  ])('fails closed for invalid player knowledge metadata %s=%#', async (key, value) => {
+    const { source } = createSource({
+      map_nodes: [nodeRow({ [key]: value })],
+      map_routes: [],
+    });
+
+    await expect(source.load(playerId)).rejects.toThrow();
   });
 
   it('rejects the built projection when it fails the strict schema', async () => {
