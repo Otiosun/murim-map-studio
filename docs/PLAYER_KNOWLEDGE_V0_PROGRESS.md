@@ -97,13 +97,49 @@ Evidência técnica final do 8D:
 
 Checkpoint detalhado: `docs/PLAYER_ROUTE_KNOWLEDGE_V0_STATUS.md`.
 
+## Gate 8E — Player Node Details
+
+Gate 8E está tecnicamente fechado na branch `foundation/player-node-details-v0` sobre o head final do 8D.
+
+- `ProjectionNode.detail` aceita somente `category` e `summary` player-safe, com limites e `trim` determinísticos;
+- o adapter de `player_api.map_nodes.details` é estrito e fail-closed; `{}` vira ausência de detalhe e qualquer shape inesperado invalida a projeção inteira;
+- nenhum fluxo copia automaticamente payload/secret payload canônico para detalhes do jogador;
+- o cliente recebe um view model minimizado com somente ID local da projeção, label, role, estado de conhecimento e detail autorizados;
+- selecionar um node não consulta servidor, Supabase, router nem world truth adicional;
+- click/pointer/touch sintetizado, Enter e Space abrem o mesmo painel compacto; Escape e `Fechar` encerram a seleção;
+- foco retorna ao node selecionado quando possível e cai para a região do explorer se o node tiver saído do DOM;
+- `PlayerMapSvg` permanece server-rendered e usa somente IDs locais da projeção como metadata de interação;
+- node sem label usa `Local não identificado`; ghost expõe somente o aviso genérico de localização aproximada;
+- `aria-pressed` e `data-selected` refletem a seleção, com hover/focus-visible/selected somente como apresentação;
+- hit target SVG separado oferece aproximadamente 44 CSS px sem alterar marker, viewport, geometria ou precisão de conhecimento;
+- painel é não modal e responsivo; não houve introdução de pan/zoom, Pixi/WebGPU ou nova autoridade de dados.
+
+Evidência funcional final do 8E:
+
+- head funcional verde: `e4b51807fbb1f023e0a9a8000a28e7a95a93a7f4`;
+- CI funcional: run `33456259216` (#536);
+- job `quality`: SUCCESS;
+- job `database`: SUCCESS;
+- 28 test files / 180 testes unitários e de componente PASS;
+- 4 arquivos / 78 testes DB/RLS PASS;
+- rebuild completo do Supabase PASS;
+- PostgREST A/B mantém detalhes específicos por jogador e precisão de rota autorizada;
+- Auth real A/B mantém detalhes de node e geometria de rota isolados;
+- tipos gerados do banco sem drift;
+- nenhuma migration nova no 8E.
+
+Checkpoint detalhado: `docs/PLAYER_NODE_DETAILS_V0_STATUS.md`.
+
+O 8E não inclui Playwright, matriz real Chromium/WebKit/Firefox nem validação manual em aparelho físico; esses itens permanecem nos gates de qualidade/E2E apropriados.
+
 ## Fase 8 — restante
 
-O fechamento de 8A, 8B, 8C e 8D não encerra o Gate 8 inteiro. O próximo corte é 8E — detalhe compacto/touch de nodes.
+O fechamento de 8A, 8B, 8C, 8D e 8E não encerra o Gate 8 inteiro.
+
+Próximo corte recomendado: confiança, origem, frescor e privacidade em apresentação segura.
 
 Permanecem para cortes posteriores:
 
-- detalhe progressivo e touch de nodes;
 - confiança, origem, frescor e privacidade em apresentação onde aplicável;
 - notas do jogador;
 - compartilhamento controlado de conhecimento;
