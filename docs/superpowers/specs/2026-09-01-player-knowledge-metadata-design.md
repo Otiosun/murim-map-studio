@@ -89,24 +89,14 @@ Add one common semantic contract usable by both `ProjectionNode` and `Projection
 export type ProjectionConfidenceBand = 'low' | 'moderate' | 'high' | 'very-high';
 
 export type ProjectionKnowledgeSourceKind =
-  | 'system'
-  | 'exploration'
-  | 'npc'
-  | 'player'
-  | 'document'
-  | 'scene';
+  'system' | 'exploration' | 'npc' | 'player' | 'document' | 'scene';
 
 export interface ProjectionKnowledgeSource {
   kind: ProjectionKnowledgeSourceKind;
   label?: string;
 }
 
-export type ProjectionFreshness =
-  | 'just-updated'
-  | 'recent'
-  | 'aging'
-  | 'stale'
-  | 'not-applicable';
+export type ProjectionFreshness = 'just-updated' | 'recent' | 'aging' | 'stale' | 'not-applicable';
 
 export type ProjectionKnowledgePrivacy = 'private' | 'shared' | 'public';
 
@@ -222,7 +212,7 @@ For a knowledge record:
 World-minute advancement must go through a trusted server-side canonical mutation, conceptually equivalent to:
 
 ```ts
-advanceWorldMinute(worldId, nextWorldMinute)
+advanceWorldMinute(worldId, nextWorldMinute);
 ```
 
 The operation must:
@@ -278,7 +268,7 @@ Freshness does not automatically mutate `knowledgeState`, confidence or geometry
 8F supports three descriptive player-facing privacy states:
 
 ```ts
-'private' | 'shared' | 'public'
+'private' | 'shared' | 'public';
 ```
 
 Meaning:
