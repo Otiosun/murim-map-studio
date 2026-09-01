@@ -2,6 +2,7 @@ import { z } from 'zod';
 import { ENTITY_TYPES, KNOWLEDGE_STATES, validateWorldDocument } from '@murim/domain';
 import type { WorldDocument, WorldEntity } from '@murim/domain';
 import {
+  PLAYER_KNOWLEDGE_SOURCE_LABEL_MAX_LENGTH,
   PLAYER_NODE_DETAIL_CATEGORY_MAX_LENGTH,
   PLAYER_NODE_DETAIL_SUMMARY_MAX_LENGTH,
 } from '@murim/map-renderer';
@@ -360,6 +361,22 @@ const projectionNodeDetailSchema = z
   })
   .strict();
 
+const projectionKnowledgeSourceSchema = z
+  .object({
+    kind: z.enum(['system', 'exploration', 'npc', 'player', 'document', 'scene']),
+    label: z.string().trim().min(1).max(PLAYER_KNOWLEDGE_SOURCE_LABEL_MAX_LENGTH).optional(),
+  })
+  .strict();
+
+const projectionKnowledgePresentationSchema = z
+  .object({
+    confidence: z.enum(['low', 'moderate', 'high', 'very-high']),
+    source: projectionKnowledgeSourceSchema,
+    freshness: z.enum(['just-updated', 'recent', 'aging', 'stale', 'not-applicable']),
+    privacy: z.enum(['private', 'shared', 'public']),
+  })
+  .strict();
+
 const projectionNodeSchema = z
   .object({
     ...projectionBaseShape,
@@ -369,7 +386,7 @@ const projectionNodeSchema = z
     symbolKey: nonEmptyString,
     label: z.string().optional(),
     knowledgeState: z.enum(KNOWLEDGE_STATES).optional(),
-    confidence: z.number().min(0).max(1).optional(),
+    knowledgePresentation: projectionKnowledgePresentationSchema,
     approximateLocation: approximateLocationSchema.optional(),
     detail: projectionNodeDetailSchema.optional(),
   })
@@ -385,6 +402,7 @@ const projectionRouteSchema = z
     styleKey: nonEmptyString,
     label: z.string().optional(),
     knowledgeState: z.enum(KNOWLEDGE_STATES).optional(),
+    knowledgePresentation: projectionKnowledgePresentationSchema,
   })
   .strict();
 
