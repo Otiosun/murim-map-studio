@@ -16,24 +16,14 @@ export type ProjectionItemId = string;
 export type ProjectionConfidenceBand = 'low' | 'moderate' | 'high' | 'very-high';
 
 export type ProjectionKnowledgeSourceKind =
-  | 'system'
-  | 'exploration'
-  | 'npc'
-  | 'player'
-  | 'document'
-  | 'scene';
+  'system' | 'exploration' | 'npc' | 'player' | 'document' | 'scene';
 
 export interface ProjectionKnowledgeSource {
   kind: ProjectionKnowledgeSourceKind;
   label?: string;
 }
 
-export type ProjectionFreshness =
-  | 'just-updated'
-  | 'recent'
-  | 'aging'
-  | 'stale'
-  | 'not-applicable';
+export type ProjectionFreshness = 'just-updated' | 'recent' | 'aging' | 'stale' | 'not-applicable';
 
 export type ProjectionKnowledgePrivacy = 'private' | 'shared' | 'public';
 
@@ -98,11 +88,7 @@ export interface ProjectionAnnotation extends ProjectionItemBase<'annotation'> {
 }
 
 export type MapProjectionItem =
-  | ProjectionNode
-  | ProjectionRoute
-  | ProjectionArea
-  | ProjectionRing
-  | ProjectionAnnotation;
+  ProjectionNode | ProjectionRoute | ProjectionArea | ProjectionRing | ProjectionAnnotation;
 
 export interface MapProjection {
   projectionVersion: 1;
